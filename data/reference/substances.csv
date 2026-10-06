@@ -1,0 +1,95 @@
+substance_id,ins,name,kind,aliases
+ins-102,102,Tartrazine,synthetic colour,
+ins-110,110,Sunset Yellow FCF,synthetic colour,sunset yellow
+ins-122,122,Carmoisine,synthetic colour,azorubine
+ins-124,124,Ponceau 4R,synthetic colour,ponceau
+ins-127,127,Erythrosine,synthetic colour,
+ins-132,132,Indigo Carmine,synthetic colour,indigotine
+ins-133,133,Brilliant Blue FCF,synthetic colour,brilliant blue
+ins-143,143,Fast Green FCF,synthetic colour,fast green
+ins-100,100,Curcumin,natural colour,turmeric extract
+ins-101,101,Riboflavin,natural colour,
+ins-120,120,Carmines,natural colour,cochineal|carmine
+ins-140,140,Chlorophylls,natural colour,chlorophyll
+ins-150a,150a,Plain caramel,natural colour,caramel colour|caramel
+ins-150c,150c,Ammonia caramel,natural colour,
+ins-150d,150d,Sulphite ammonia caramel,natural colour,
+ins-160a,160a,Beta-carotene,natural colour,carotenes|beta carotene
+ins-160b,160b,Annatto,natural colour,
+ins-160c,160c,Paprika extract,natural colour,paprika oleoresin
+ins-162,162,Beet red,natural colour,beetroot red
+ins-163,163,Anthocyanins,natural colour,
+ins-171,171,Titanium dioxide,colour,
+ins-200,200,Sorbic acid,preservative,
+ins-202,202,Potassium sorbate,preservative,
+ins-210,210,Benzoic acid,preservative,
+ins-211,211,Sodium benzoate,preservative,
+ins-220,220,Sulphur dioxide,preservative,sulfur dioxide
+ins-223,223,Sodium metabisulphite,preservative,sodium metabisulfite
+ins-224,224,Potassium metabisulphite,preservative,potassium metabisulfite|kms
+ins-234,234,Nisin,preservative,
+ins-250,250,Sodium nitrite,preservative,
+ins-251,251,Sodium nitrate,preservative,
+ins-260,260,Acetic acid,acidity regulator,
+ins-270,270,Lactic acid,acidity regulator,
+ins-282,282,Calcium propionate,preservative,
+ins-296,296,Malic acid,acidity regulator,
+ins-300,300,Ascorbic acid,antioxidant,vitamin c
+ins-307,307,Tocopherols,antioxidant,vitamin e
+ins-319,319,TBHQ,antioxidant,tertiary butylhydroquinone
+ins-320,320,BHA,antioxidant,butylated hydroxyanisole
+ins-321,321,BHT,antioxidant,butylated hydroxytoluene
+ins-322,322,Lecithins,emulsifier,lecithin|soy lecithin|soya lecithin
+ins-330,330,Citric acid,acidity regulator,
+ins-331,331,Sodium citrates,acidity regulator,sodium citrate|trisodium citrate
+ins-334,334,Tartaric acid,acidity regulator,
+ins-338,338,Phosphoric acid,acidity regulator,
+ins-339,339,Sodium phosphates,acidity regulator,
+ins-341,341,Calcium phosphates,acidity regulator,
+ins-401,401,Sodium alginate,thickener,
+ins-406,406,Agar,thickener,agar agar
+ins-407,407,Carrageenan,thickener,
+ins-410,410,Locust bean gum,thickener,
+ins-412,412,Guar gum,thickener,
+ins-414,414,Gum arabic,thickener,acacia gum
+ins-415,415,Xanthan gum,thickener,
+ins-420,420,Sorbitol,humectant,
+ins-422,422,Glycerol,humectant,glycerine|glycerin
+ins-440,440,Pectins,thickener,pectin
+ins-450,450,Diphosphates,raising agent,
+ins-451,451,Triphosphates,stabilizer,
+ins-452,452,Polyphosphates,stabilizer,
+ins-466,466,Sodium carboxymethyl cellulose,thickener,cmc
+ins-471,471,Mono- and diglycerides of fatty acids,emulsifier,mono and diglycerides
+ins-472e,472e,DATEM,emulsifier,
+ins-476,476,PGPR,emulsifier,polyglycerol polyricinoleate
+ins-481,481,Sodium stearoyl lactylate,emulsifier,
+ins-500,500,Sodium carbonates,raising agent,sodium bicarbonate|sodium hydrogen carbonate|baking soda
+ins-501,501,Potassium carbonates,raising agent,
+ins-503,503,Ammonium carbonates,raising agent,ammonium bicarbonate|ammonium hydrogen carbonate
+ins-508,508,Potassium chloride,salt substitute,
+ins-551,551,Silicon dioxide,anticaking agent,
+ins-621,621,Monosodium glutamate,flavour enhancer,msg
+ins-627,627,Disodium guanylate,flavour enhancer,
+ins-631,631,Disodium inosinate,flavour enhancer,
+ins-635,635,Disodium 5'-ribonucleotides,flavour enhancer,disodium ribonucleotides
+ins-924a,924a,Potassium bromate,flour treatment agent,
+ins-950,950,Acesulfame potassium,artificial sweetener,acesulfame k
+ins-951,951,Aspartame,artificial sweetener,
+ins-952,952,Cyclamates,artificial sweetener,sodium cyclamate
+ins-954,954,Saccharin,artificial sweetener,saccharin sodium
+ins-955,955,Sucralose,artificial sweetener,
+ins-960,960,Steviol glycosides,sweetener,stevia
+ins-1422,1422,Acetylated distarch adipate,modified starch,
+ins-1442,1442,Hydroxypropyl distarch phosphate,modified starch,
+ins-1520,1520,Propylene glycol,humectant,
+metanil-yellow,,Metanil yellow,non-permitted colour,
+rhodamine-b,,Rhodamine B,non-permitted colour,rhodamine
+sudan-dyes,,Sudan dyes,non-permitted colour,sudan i|sudan iii|sudan iv|sudan red
+auramine,,Auramine,non-permitted colour,auramine o
+malachite-green,,Malachite green,non-permitted colour,
+orange-ii,,Orange II,non-permitted colour,acid orange 7
+calcium-carbide,,Calcium carbide,ripening agent,carbide
+argemone-oil,,Argemone oil,adulterant,
+formaldehyde,,Formaldehyde,adulterant,formalin
+partially-hydrogenated-oil,,Partially hydrogenated vegetable oil,fat,vanaspati|hydrogenated vegetable oil|partially hydrogenated oil|hydrogenated fat

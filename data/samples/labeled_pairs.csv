@@ -1,0 +1,136 @@
+purchase_id,recall_id,is_match,case
+P0001,SYN-2025-0001,1,"exact batch, name variant"
+P0002,SYN-2025-0001,1,no batch on receipt
+P0003,SYN-2025-0002,1,"exact batch, name variant"
+P0004,SYN-2025-0002,1,no batch on receipt
+P0005,SYN-2025-0002,0,"same product, other brand"
+P0006,SYN-2026-0003,1,"exact batch, name variant"
+P0007,SYN-2026-0003,1,no batch on receipt
+P0008,SYN-2026-0003,0,different batch
+P0009,SYN-2026-0003,0,bought before manufacture
+P0010,SYN-2026-0003,0,"same product, other brand"
+P0011,SYN-2025-0004,1,"exact batch, name variant"
+P0012,SYN-2025-0004,1,no batch on receipt
+P0013,SYN-2025-0004,0,different batch
+P0014,SYN-2025-0004,0,"same product, other brand"
+P0015,SYN-2025-0005,1,"exact batch, name variant"
+P0016,SYN-2025-0005,1,no batch on receipt
+P0017,SYN-2025-0005,0,bought before manufacture
+P0018,SYN-2025-0006,1,"exact batch, name variant"
+P0019,SYN-2025-0006,1,no batch on receipt
+P0020,SYN-2025-0006,0,bought before manufacture
+P0021,SYN-2026-0007,1,"exact batch, name variant"
+P0022,SYN-2026-0007,1,no batch on receipt
+P0023,SYN-2025-0008,1,"exact batch, name variant"
+P0024,SYN-2025-0008,1,no batch on receipt
+P0025,SYN-2025-0008,0,"same product, other brand"
+P0026,SYN-2025-0009,1,"exact batch, name variant"
+P0027,SYN-2025-0009,1,no batch on receipt
+P0028,SYN-2025-0009,0,different batch
+P0029,SYN-2025-0009,0,"same product, other brand"
+P0030,SYN-2025-0010,1,"exact batch, name variant"
+P0031,SYN-2025-0010,1,no batch on receipt
+P0032,SYN-2025-0010,0,different batch
+P0033,SYN-2025-0010,0,"same product, other brand"
+P0034,SYN-2025-0011,1,"exact batch, name variant"
+P0035,SYN-2025-0011,1,no batch on receipt
+P0036,SYN-2025-0011,0,"same product, other brand"
+P0037,SYN-2025-0012,1,"exact batch, name variant"
+P0038,SYN-2025-0012,1,no batch on receipt
+P0039,SYN-2025-0013,1,"exact batch, name variant"
+P0040,SYN-2025-0013,1,no batch on receipt
+P0041,SYN-2025-0014,1,"exact batch, name variant"
+P0042,SYN-2025-0014,1,no batch on receipt
+P0043,SYN-2025-0014,0,different batch
+P0044,SYN-2026-0015,1,"exact batch, name variant"
+P0045,SYN-2026-0015,1,no batch on receipt
+P0046,SYN-2026-0015,0,different batch
+P0047,SYN-2025-0016,1,"exact batch, name variant"
+P0048,SYN-2025-0016,1,no batch on receipt
+P0049,SYN-2025-0016,0,bought before manufacture
+P0050,SYN-2025-0016,0,"same product, other brand"
+P0051,SYN-2025-0017,1,"exact batch, name variant"
+P0052,SYN-2025-0017,1,no batch on receipt
+P0053,SYN-2025-0017,0,different batch
+P0054,SYN-2025-0017,0,"same product, other brand"
+P0055,SYN-2025-0018,1,"exact batch, name variant"
+P0056,SYN-2025-0018,1,no batch on receipt
+P0057,SYN-2025-0018,0,different batch
+P0058,SYN-2025-0018,0,bought before manufacture
+P0059,SYN-2025-0019,1,"exact batch, name variant"
+P0060,SYN-2025-0019,1,no batch on receipt
+P0061,SYN-2025-0019,0,bought before manufacture
+P0062,SYN-2025-0019,0,"same product, other brand"
+P0063,SYN-2026-0020,1,"exact batch, name variant"
+P0064,SYN-2026-0020,1,no batch on receipt
+P0065,SYN-2026-0020,0,different batch
+P0066,SYN-2026-0020,0,bought before manufacture
+P0067,SYN-2026-0020,0,"same product, other brand"
+P0068,SYN-2026-0021,1,"exact batch, name variant"
+P0069,SYN-2026-0021,1,no batch on receipt
+P0070,SYN-2026-0021,0,different batch
+P0071,SYN-2026-0021,0,"same product, other brand"
+P0072,SYN-2025-0022,1,"exact batch, name variant"
+P0073,SYN-2025-0022,1,no batch on receipt
+P0074,SYN-2025-0022,0,different batch
+P0075,SYN-2025-0023,1,"exact batch, name variant"
+P0076,SYN-2025-0023,1,no batch on receipt
+P0077,SYN-2025-0023,0,different batch
+P0078,SYN-2025-0024,1,"exact batch, name variant"
+P0079,SYN-2025-0024,1,no batch on receipt
+P0080,SYN-2025-0024,0,different batch
+P0081,SYN-2025-0024,0,"same product, other brand"
+P0082,SYN-2026-0025,1,"exact batch, name variant"
+P0083,SYN-2026-0025,1,no batch on receipt
+P0084,SYN-2026-0025,0,bought before manufacture
+P0085,SYN-2025-0026,1,"exact batch, name variant"
+P0086,SYN-2025-0026,1,no batch on receipt
+P0087,SYN-2025-0027,1,"exact batch, name variant"
+P0088,SYN-2025-0027,1,no batch on receipt
+P0089,SYN-2025-0027,0,different batch
+P0090,SYN-2025-0028,1,"exact batch, name variant"
+P0091,SYN-2025-0028,1,no batch on receipt
+P0092,SYN-2025-0028,0,different batch
+P0093,SYN-2025-0028,0,"same product, other brand"
+P0094,SYN-2025-0029,1,"exact batch, name variant"
+P0095,SYN-2025-0029,1,no batch on receipt
+P0096,SYN-2025-0029,0,"same product, other brand"
+P0097,SYN-2026-0030,1,"exact batch, name variant"
+P0098,SYN-2026-0030,1,no batch on receipt
+P0099,SYN-2026-0030,0,"same product, other brand"
+P0100,SYN-2025-0028,1,no batch on receipt
+P0100,SYN-2026-0003,0,"same category, different product"
+P0101,SYN-2025-0028,1,no batch on receipt
+P0101,SYN-2025-0004,0,"same category, different product"
+P0102,SYN-2025-0006,1,no batch on receipt
+P0102,SYN-2025-0005,0,"same category, different product"
+P0103,SYN-2026-0007,1,no batch on receipt
+P0103,SYN-2025-0006,0,"same category, different product"
+P0104,SYN-2025-0008,1,no batch on receipt
+P0104,SYN-2025-0009,0,"same category, different product"
+P0105,SYN-2025-0029,1,no batch on receipt
+P0105,SYN-2025-0012,0,"same category, different product"
+P0106,SYN-2025-0018,1,no batch on receipt
+P0106,SYN-2025-0017,0,"same category, different product"
+P0107,SYN-2025-0017,1,no batch on receipt
+P0107,SYN-2025-0018,0,"same category, different product"
+P0108,SYN-2026-0021,1,no batch on receipt
+P0108,SYN-2026-0020,0,"same category, different product"
+P0109,SYN-2025-0023,1,no batch on receipt
+P0109,SYN-2025-0026,0,"same category, different product"
+P0110,SYN-2026-0003,1,no batch on receipt
+P0110,SYN-2025-0028,0,"same category, different product"
+P0111,SYN-2025-0014,1,no batch on receipt
+P0111,SYN-2025-0029,0,"same category, different product"
+P0112,SYN-2025-0018,0,unrelated non-food item
+P0113,SYN-2026-0020,0,unrelated non-food item
+P0114,SYN-2025-0002,0,unrelated non-food item
+P0115,SYN-2026-0015,0,unrelated non-food item
+P0116,SYN-2025-0004,0,unrelated non-food item
+P0117,SYN-2025-0002,0,unrelated non-food item
+P0118,SYN-2025-0026,0,unrelated non-food item
+P0119,SYN-2025-0017,0,unrelated non-food item
+P0120,SYN-2025-0001,0,unrelated non-food item
+P0121,SYN-2025-0018,0,unrelated non-food item
+P0122,SYN-2025-0004,0,unrelated non-food item
+P0123,SYN-2025-0016,0,unrelated non-food item

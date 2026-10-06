@@ -1,0 +1,124 @@
+purchase_id,product_name,brand,batch_no,store,purchase_date
+P0001,Peanut Roasted Chikki,Sunvalley Foods,SU6990C,Online - Example Grocer,30/04/2026
+P0002,Sunvalley roasted peanut chikki 200g,,,Corner Store Borivali,30/04/2026
+P0003,MASALA INSTANT NOODLES,Quickbite,QU7579B,SampleMart Thane,28/08/2025
+P0004,MASALA INSTANT NOODLES,quickbite,,SampleMart Thane,28/08/2025
+P0005,MASALA INSTANT NOODLES,Neerja Select,,Online - Example Grocer,28/08/2025
+P0006,TONED MILK,Dhenu Dairy,DH4440C,Corner Store Borivali,11/09/2026
+P0007,Dhenu Toned  Milk,,,SampleMart Andheri,11/09/2026
+P0008,Toned  Milk,Dhenu Dairy,DH4440Z,Corner Store Borivali,11/09/2026
+P0009,Toned  Milk,Dhenu Dairy,,Corner Store Borivali,29/11/2025
+P0010,TONED MILK,Musclefuel Select,,Online - Example Grocer,11/09/2026
+P0011,PANEER FRESH,Dhenu Dairy,DH3320D,SampleMart Thane,03/04/2026
+P0012,Paneer Fresh,dhenu dairy,,Corner Store Borivali,03/04/2026
+P0013,Paneer  Fresh,Dhenu Dairy,DH3320Z,SampleMart Andheri,03/04/2026
+P0014,paneer fresh 200g,Sunvalley Foods Select,,Corner Store Borivali,03/04/2026
+P0015,RED CHILLI POWDER,Rasoi Gold,RA6810A,SampleMart Thane,25/10/2025
+P0016,RED CHILLI POWDER,rasoi gold,,SampleMart Andheri,25/10/2025
+P0017,Red Chilli Powder,Rasoi Gold,,Online - Example Grocer,10/10/2025
+P0018,turmeric powder 200g,Rasoi Gold,RA4503B,Online - Example Grocer,24/05/2025
+P0019,Rasoi Turmeric  Powder,,,Online - Example Grocer,24/05/2025
+P0020,Turmeric Powder,Rasoi Gold,,Online - Example Grocer,14/03/2025
+P0021,Garam Masala,Spicetrail,SP9734E,Online - Example Grocer,24/02/2026
+P0022,Masala Garam,spicetrail,,Online - Example Grocer,24/02/2026
+P0023,Mango Pickle,Nani's Kitchen,NA2541E,Online - Example Grocer,27/06/2025
+P0024,Mango  Pickle,nani's kitchen,,Corner Store Borivali,27/06/2025
+P0025,Mango Pickle,Redberry Select,,SampleMart Andheri,27/06/2025
+P0026,Ketchup Tomato,Redberry,RE1884B,SampleMart Thane,26/11/2025
+P0027,Tomato Ketchup,redberry,,SampleMart Andheri,26/11/2025
+P0028,Tomato  Ketchup,Redberry,RE1884Z,SampleMart Andheri,26/11/2025
+P0029,TOMATO KETCHUP,Neerja Select,,Corner Store Borivali,26/11/2025
+P0030,cold pressed groundnut oil 1L,Ghani Pure,GH9605B,SampleMart Andheri,05/02/2025
+P0031,Ghani Cold Pressed Groundnut Oil,,,SampleMart Andheri,05/02/2025
+P0032,COLD PRESSED GROUNDNUT OIL,Ghani Pure,GH9605Z,Online - Example Grocer,05/02/2025
+P0033,cold pressed groundnut oil 1L,Kerala Crisp Select,,SampleMart Andheri,05/02/2025
+P0034,Refined Sunflower Oil,Suryamukhi,SU1822E,Corner Store Borivali,02/04/2025
+P0035,Refined  Sunflower  Oil,Suryamukhi,,SampleMart Andheri,02/04/2025
+P0036,Refined Sunflower Oil,Morning Oven Select,,Corner Store Borivali,02/04/2025
+P0037,Rice Basmati,Himgiri,HI2229E,Corner Store Borivali,26/06/2025
+P0038,Rice Basmati,himgiri,,SampleMart Andheri,26/06/2025
+P0039,toor dal 1kg,Kisan Choice,KI1806D,SampleMart Andheri,01/11/2025
+P0040,Dal Toor,Kisan Choice,,SampleMart Thane,01/11/2025
+P0041,Whole  Wheat  Atta,Kisan Choice,KI8526B,SampleMart Andheri,17/11/2025
+P0042,Wheat Whole Atta,kisan choice,,Corner Store Borivali,17/11/2025
+P0043,whole wheat atta 10kg,Kisan Choice,KI8526Z,SampleMart Thane,17/11/2025
+P0044,CHOCOLATE CHIP COOKIES,Crumbly,CR9510D,SampleMart Thane,22/11/2026
+P0045,CHOCOLATE CHIP COOKIES,crumbly,,Online - Example Grocer,22/11/2026
+P0046,CHOCOLATE CHIP COOKIES,Crumbly,CR9510Z,SampleMart Andheri,22/11/2026
+P0047,MULTIGRAIN BREAD,Morning Oven,MO4458C,Corner Store Borivali,06/09/2025
+P0048,multigrain bread 400g,morning oven,,Corner Store Borivali,06/09/2025
+P0049,Multigrain Bread,Morning Oven,,SampleMart Andheri,18/06/2025
+P0050,multigrain bread 400g,Kerala Crisp Select,,Online - Example Grocer,06/09/2025
+P0051,Mixed  Fruit  Jam,Redberry,RE3928D,Corner Store Borivali,22/10/2025
+P0052,Redberry Mixed Fruit Jam,,,SampleMart Andheri,22/10/2025
+P0053,Fruit Mixed Jam,Redberry,RE3928Z,Online - Example Grocer,22/10/2025
+P0054,MIXED FRUIT JAM,Dhenu Dairy Select,,Online - Example Grocer,22/10/2025
+P0055,Honey,Madhuvan,MA5315B,Online - Example Grocer,08/09/2025
+P0056,Madhuvan HONEY,,,Online - Example Grocer,08/09/2025
+P0057,Honey,Madhuvan,MA5315Z,SampleMart Andheri,08/09/2025
+P0058,HONEY,Madhuvan,,SampleMart Thane,17/07/2025
+P0059,Kaju Katli,Mithaas,MI9480A,SampleMart Andheri,27/06/2025
+P0060,Kaju  Katli,Mithaas,,Corner Store Borivali,27/06/2025
+P0061,kaju katli 250g,Mithaas,,SampleMart Thane,10/01/2025
+P0062,Katli Kaju,Sunvalley Foods Select,,Corner Store Borivali,27/06/2025
+P0063,ALOO BHUJIA,Namkeenwala,NA1428D,Corner Store Borivali,15/02/2026
+P0064,Aloo  Bhujia,Namkeenwala,,Online - Example Grocer,15/02/2026
+P0065,Aloo  Bhujia,Namkeenwala,NA1428Z,Corner Store Borivali,15/02/2026
+P0066,Aloo Bhujia,Namkeenwala,,Corner Store Borivali,15/01/2026
+P0067,aloo bhujia 400g,Dhenu Dairy Select,,Online - Example Grocer,15/02/2026
+P0068,Banana  Chips,Kerala Crisp,KE4081E,Online - Example Grocer,29/06/2026
+P0069,Kerala Banana  Chips,,,SampleMart Andheri,29/06/2026
+P0070,banana chips 150g,Kerala Crisp,KE4081Z,SampleMart Thane,29/06/2026
+P0071,Banana Chips,Dhenu Dairy Select,,Online - Example Grocer,29/06/2026
+P0072,Mango Drink,Aamras Co,AA6558A,SampleMart Thane,31/07/2025
+P0073,mango drink 1.2L,aamras co,,SampleMart Thane,31/07/2025
+P0074,MANGO DRINK,Aamras Co,AA6558Z,SampleMart Thane,31/07/2025
+P0075,Drinking Packaged Water,Neerja,NE4985D,SampleMart Andheri,07/09/2025
+P0076,Packaged Drinking Water,neerja,,Corner Store Borivali,07/09/2025
+P0077,packaged drinking water 1L,Neerja,NE4985Z,Corner Store Borivali,07/09/2025
+P0078,Baby Cereal Rice,Tinybite,TI4281D,SampleMart Andheri,09/03/2025
+P0079,Cereal Baby Rice,Tinybite,,SampleMart Thane,09/03/2025
+P0080,Cereal Baby Rice,Tinybite,TI4281Z,Corner Store Borivali,09/03/2025
+P0081,BABY CEREAL RICE,Ghani Pure Select,,Online - Example Grocer,09/03/2025
+P0082,protein powder chocolate 1kg,Musclefuel,MU8141D,Online - Example Grocer,20/03/2026
+P0083,PROTEIN POWDER CHOCOLATE,musclefuel,,Corner Store Borivali,20/03/2026
+P0084,Protein  Powder  Chocolate,Musclefuel,,SampleMart Thane,19/01/2026
+P0085,green tea 100g,Assam Leaf,AS6195D,Corner Store Borivali,31/10/2025
+P0086,Assam green tea 100g,,,SampleMart Andheri,31/10/2025
+P0087,vanilla ice cream 1L,Frostee,FR4860D,SampleMart Andheri,15/04/2025
+P0088,vanilla ice cream 1L,Frostee,,SampleMart Andheri,15/04/2025
+P0089,Ice Vanilla Cream,Frostee,FR4860Z,SampleMart Andheri,15/04/2025
+P0090,ghee 1L,Dhenu Dairy,DH9230B,SampleMart Thane,19/06/2025
+P0091,Ghee,dhenu dairy,,Corner Store Borivali,19/06/2025
+P0092,GHEE,Dhenu Dairy,DH9230Z,Corner Store Borivali,19/06/2025
+P0093,Ghee,Redberry Select,,SampleMart Thane,19/06/2025
+P0094,Soya  Chunks,Kisan Choice,KI7196B,SampleMart Andheri,04/09/2025
+P0095,Chunks Soya,Kisan Choice,,SampleMart Thane,04/09/2025
+P0096,Soya  Chunks,Nani's Kitchen Select,,Online - Example Grocer,04/09/2025
+P0097,Water Coconut,Kerala Crisp,KE3433B,SampleMart Thane,25/06/2026
+P0098,Coconut  Water,kerala crisp,,SampleMart Thane,25/06/2026
+P0099,Coconut  Water,Dhenu Dairy Select,,Online - Example Grocer,25/06/2026
+P0100,Ghee,Dhenu Dairy,,SampleMart Thane,08/05/2025
+P0101,ghee 1L,Dhenu Dairy,,SampleMart Andheri,08/05/2025
+P0102,Turmeric  Powder,Rasoi Gold,,Online - Example Grocer,06/05/2025
+P0103,garam masala 50g,Spicetrail,,Online - Example Grocer,21/01/2026
+P0104,Mango  Pickle,Nani's Kitchen,,SampleMart Andheri,16/06/2025
+P0105,soya chunks 200g,Kisan Choice,,SampleMart Thane,12/08/2025
+P0106,Honey,Madhuvan,,SampleMart Andheri,23/08/2025
+P0107,Mixed Fruit Jam,Redberry,,SampleMart Thane,28/09/2025
+P0108,Banana Chips,Kerala Crisp,,Online - Example Grocer,17/01/2026
+P0109,Drinking Packaged Water,Neerja,,Online - Example Grocer,24/06/2025
+P0110,toned milk 500ml,Dhenu Dairy,,Corner Store Borivali,31/12/2025
+P0111,Wheat Whole Atta,Kisan Choice,,Online - Example Grocer,25/09/2025
+P0112,Shampoo 180ml,Generic Home,,Corner Store Borivali,15/06/2025
+P0113,Shampoo 180ml,Generic Home,,SampleMart Thane,15/06/2025
+P0114,Toothpaste 150g,Generic Home,,Online - Example Grocer,15/06/2025
+P0115,Shampoo 180ml,Generic Home,,SampleMart Thane,15/06/2025
+P0116,Shampoo 180ml,Generic Home,,Online - Example Grocer,15/06/2025
+P0117,Toothpaste 150g,Generic Home,,SampleMart Andheri,15/06/2025
+P0118,Toothpaste 150g,Generic Home,,SampleMart Thane,15/06/2025
+P0119,Toothpaste 150g,Generic Home,,Online - Example Grocer,15/06/2025
+P0120,Notebook A4,Generic Home,,Corner Store Borivali,15/06/2025
+P0121,Detergent Powder 1kg,Generic Home,,Corner Store Borivali,15/06/2025
+P0122,Dish Soap 500ml,Generic Home,,SampleMart Thane,15/06/2025
+P0123,Floor Cleaner 1L,Generic Home,,Online - Example Grocer,15/06/2025

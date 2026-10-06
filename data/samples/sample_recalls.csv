@@ -1,0 +1,34 @@
+Recall No.,Product Name,Brand Name,Food Category,Batch No.,Name of FBO,Licence No.,Reason for Recall,Recall Class,Date of Recall,Mfg. Date,Expiry Date,Status,State
+SYN-2025-0001,Roasted Peanut Chikki 200g,Sunvalley Foods,Sweets & Confectionery,SU6990C,Sunvalley Foods Pvt. Ltd. (synthetic),25501732159787,Undeclared allergen (peanut),class I,24-Oct-2025,25-Sep-2025,22-Jun-2026,Completed,Kerala
+SYN-2025-0002,Masala Instant Noodles 70g,Quickbite,Instant Foods,QU7579B,Quickbite Pvt. Ltd. (synthetic),87575692630292,Undeclared allergen (peanut),class I,09/06/2025,10/05/2025,10/05/2026,ongoing,Karnataka
+SYN-2025-0010,Cold Pressed Groundnut Oil 1L,Ghani Pure,Edible Oils,GH9605B,Ghani Pure Pvt. Ltd. (synthetic),78240171325417,Lead above permissible limit,class I,26-Feb-2025,11-Jan-2025,11-Jan-2026,Ongoing,Delhi
+SYN-2026-0003,Toned Milk 500ml,Dhenu Dairy,Dairy,DH4440C,Dhenu Dairy Pvt. Ltd. (synthetic),27379756804573,Aflatoxin above permissible limit,Class II,2026-02-11,2025-12-28,2026-12-28,Completed,Gujarat
+SYN-2025-0004,Paneer Fresh 200g,Dhenu Dairy,Dairy,DH3320D,Dhenu Dairy Pvt. Ltd. (synthetic),N/A,Excess preservative (benzoic acid),class I,2025-11-06,2025-09-17,2026-06-14,Completed,Uttar Pradesh
+SYN-2025-0005,Red Chilli Powder 100g,Rasoi Gold,Spices,RA6810A,Rasoi Gold Pvt. Ltd. (synthetic),77168819618378,Excess preservative (benzoic acid),CLASS III,17-Dec-2025,20-Oct-2025,19-Nov-2025,ongoing,Kerala
+SYN-2025-0006,Turmeric Powder 200g,Rasoi Gold,Spices,RA4503B,Rasoi Gold Pvt. Ltd. (synthetic),18179162664913,Mislabelling of expiry date,class I,17/06/2025,03/05/2025,02/06/2025,Completed,Tamil Nadu
+SYN-2026-0007,Garam Masala 50g,Spicetrail,Spices,SP9734E,Spicetrail Pvt. Ltd. (synthetic),28223124137908,Mislabelling of expiry date,CLASS III,04/03/2026,18/01/2026,18/01/2027,Completed,Uttar Pradesh
+SYN-2025-0008,Mango Pickle 400g,Nani's Kitchen,Pickles & Condiments,-,Nani's Kitchen Pvt. Ltd. (synthetic),57159911622456,Undeclared allergen (peanut),class I,14/07/2025,13/06/2025,11/09/2025,Completed,Maharashtra
+SYN-2025-0009,Tomato Ketchup 500g,Redberry,Pickles & Condiments,RE1884B,Redberry Pvt. Ltd. (synthetic),46319573984692,Aflatoxin above permissible limit,CLASS III,2025-10-07,2025-08-28,2026-02-24,ONGOING,West Bengal
+SYN-2025-0010,Cold Pressed Groundnut Oil 1L,Ghani Pure,Edible Oils,GH9605B,Ghani Pure Pvt. Ltd. (synthetic),78240171325417,Lead above permissible limit,class I,26-Feb-2025,11-Jan-2025,11-Jan-2026,ongoing,Delhi
+SYN-2025-0011,Refined Sunflower Oil 1L,Suryamukhi,Edible Oils,SU1822E,Suryamukhi Pvt. Ltd. (synthetic),16959204922120,Microbial contamination (Salmonella),Class II,2025-04-11,2025-03-19,2025-04-18,ongoing,Delhi
+SYN-2025-0012,Basmati Rice 5kg,Himgiri,Grains & Pulses,HI2229E,Himgiri Pvt. Ltd. (synthetic),86425013796381,Foreign matter found,class I,18-Jun-2025,09-May-2025,not available,ONGOING,Delhi
+SYN-2025-0013,Toor Dal 1kg,Kisan Choice,Grains & Pulses,KI1806D,Kisan Choice Pvt. Ltd. (synthetic),65278747698681,Non-permitted colour detected,class I,19-Nov-2025,22-Oct-2025,20-Jan-2026,ONGOING,Kerala
+SYN-2025-0014,Whole Wheat Atta 10kg,Kisan Choice,Grains & Pulses,KI8526B,Kisan Choice Pvt. Ltd. (synthetic),77968841269342,Excess preservative (benzoic acid),class I,06-Oct-2025,22-Sep-2025,19-Jun-2026,Completed,Maharashtra
+SYN-2026-0015,Chocolate Chip Cookies 150g,Crumbly,Bakery,CR9510D,Crumbly Pvt. Ltd. (synthetic),56268962312950,Microbial contamination (Salmonella),CLASS III,04/03/2026,17/01/2026,17/01/2027,ongoing,Uttar Pradesh
+SYN-2025-0016,Multigrain Bread 400g,,Bakery,MO4458C,Morning Oven Pvt. Ltd. (synthetic),60033937260138,Non-permitted colour detected,CLASS III,04-Sep-2025,08-Jul-2025,06-Oct-2025,ongoing,Gujarat
+SYN-2025-0017,Mixed Fruit Jam 500g,Redberry,Spreads,RE3928D,Redberry Pvt. Ltd. (synthetic),72708513824367,Microbial contamination (Salmonella),CLASS III,17-Oct-2025,25-Sep-2025,25-Oct-2025,ONGOING,West Bengal
+SYN-2025-0018,Honey 250g,Madhuvan,Spreads,MA5315B,Madhuvan Pvt. Ltd. (synthetic),11155293834875,Non-permitted colour detected,Class II,2025-09-17,2025-08-20,2025-09-19,Completed,Tamil Nadu
+SYN-2025-0019,Kaju Katli 250g,Mithaas,Sweets & Confectionery,MI9480A,Mithaas Pvt. Ltd. (synthetic),25874317513256,Non-permitted colour detected,CLASS III,12/02/2025,27/01/2025,26/07/2025,Completed,Tamil Nadu
+SYN-2026-0020,Aloo Bhujia 400g,Namkeenwala,Snacks,NA1428D,Namkeenwala Pvt. Ltd. (synthetic),LIC-12345,Lead above permissible limit,class I,04-Apr-2026,04-Feb-2026,06-Mar-2026,Completed,Maharashtra
+SYN-2026-0021,Banana Chips 150g,Kerala Crisp,Snacks,KE4081E,Kerala Crisp Pvt. Ltd. (synthetic),47917098024312,Excess preservative (benzoic acid),Class II,27/01/2026,14/01/2026,14/01/2027,ONGOING,Kerala
+SYN-2025-0022,Mango Drink 1.2L,Aamras Co,Beverages,AA6558A,Aamras Co Pvt. Ltd. (synthetic),98162937676732,Mislabelling of expiry date,Class II,31/02/2025,27/07/2025,26/08/2025,Completed,Gujarat
+SYN-2025-0023,Packaged Drinking Water 1L,Neerja,Beverages,NE4985D,Neerja Pvt. Ltd. (synthetic),49873711165666,Non-permitted colour detected,class I,2025-08-04,2025-06-21,2025-09-19,Completed,Tamil Nadu
+SYN-2025-0024,Baby Cereal Rice 300g,Tinybite,Infant Food,TI4281D,Tinybite Pvt. Ltd. (synthetic),28040432767010,Foreign matter found,CLASS III,2025-03-08,2025-02-07,2025-11-04,ONGOING,Karnataka
+SYN-2026-0025,Protein Powder Chocolate 1kg,Musclefuel,Health Supplements,MU8141D,Musclefuel Pvt. Ltd. (synthetic),95064074955556,Microbial contamination (Salmonella),CLASS III,21/02/2026,06/02/2026,05/08/2026,ONGOING,Karnataka
+SYN-2025-0026,Green Tea 100g,Assam Leaf,Beverages,AS6195D,Assam Leaf Pvt. Ltd. (synthetic),49629152182710,Lead above permissible limit,class I,09-May-2025,26-Mar-2025,26-Mar-2026,ONGOING,Tamil Nadu
+SYN-2025-0027,Vanilla Ice Cream 1L,Frostee,Dairy,FR4860D,Frostee Pvt. Ltd. (synthetic),55275600767979,Non-permitted colour detected,CLASS III,2025-05-26,2025-03-28,2025-06-26,ongoing,Delhi
+SYN-2025-0028,Ghee 1L,Dhenu Dairy,Dairy,DH9230B,Dhenu Dairy Pvt. Ltd. (synthetic),10985147207234,Aflatoxin above permissible limit,Class II,2025-05-31,2025-05-05,2026-01-30,Completed,Gujarat
+SYN-2025-0029,Soya Chunks 200g,Kisan Choice,Grains & Pulses,KI7196B,Kisan Choice Pvt. Ltd. (synthetic),19930695965057,Mislabelling of expiry date,class I,20-Sep-2025,09-Aug-2025,08-Sep-2025,Completed,Uttar Pradesh
+SYN-2026-0030,Coconut Water 200ml,Kerala Crisp,Beverages,KE3433B,Kerala Crisp Pvt. Ltd. (synthetic),47442423213280,Mislabelling of expiry date,Class II,25-Feb-2026,26-Jan-2026,23-Oct-2026,Completed,Karnataka
+SYN-2025-0006,Turmeric Powder 200g,Rasoi Gold,Spices,RA4503B,Rasoi Gold Pvt. Ltd. (synthetic),18179162664913,Mislabelling of expiry date,class I,17/06/2025,03/05/2025,02/06/2025,Completed,Tamil Nadu
+  syn-2025-0002 ,Masala Instant Noodles 70g,Quickbite,Instant Foods,QU7579B,Quickbite Pvt. Ltd. (synthetic),87575692630292,Undeclared allergen (peanut),class I,09/06/2025,10/05/2025,10/05/2026,ongoing,Karnataka

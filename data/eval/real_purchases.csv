@@ -1,0 +1,73 @@
+purchase_id,product_name,brand,batch_no,store,purchase_date
+E001,Eastern Chilli Powder 100g,Eastern,AC25L10A1,hand-written test line,30/09/2026
+E002,EASTERN CHILLI PWD 250G,,,hand-written test line,30/09/2026
+E003,Eastern Chilli Powder 100g,Eastern,AC24X01B2,hand-written test line,30/09/2026
+E004,Elite Chakki Fresh Atta 5kg,Elite,AAJBAA26AH,hand-written test line,30/09/2026
+E005,Elite Chakki Atta 10kg,,,hand-written test line,30/09/2026
+E006,Ramdev Hing 50g,Ramdev,07/G,hand-written test line,30/09/2026
+E007,Ramdev Hing 50g,,,hand-written test line,30/09/2026
+E008,Ramdev Kasuri Methi 25g,Ramdev,,hand-written test line,30/09/2026
+E009,Nirapara Chilli Powder 250g,Nirapara,,hand-written test line,30/09/2026
+E010,Nirapara Coriander Powder 500g,Nirapara,FCRP260105,hand-written test line,30/09/2026
+E011,Nirapara Sambar Powder 200g,Nirapara,,hand-written test line,30/09/2026
+E012,Kitchen Treasures Chilli Powder 250g,Kitchen Treasures,,hand-written test line,30/09/2026
+E013,Kitchen Treasures Chilli Powder 250g,Kitchen Treasures,BA269267A1,hand-written test line,30/09/2026
+E014,Kitchen Treasures Turmeric Powder 200g,Kitchen Treasures,,hand-written test line,30/09/2026
+E015,Verka Dahi 400g,Verka,,hand-written test line,30/09/2026
+E016,Verka Ghee 1L,Verka,,hand-written test line,30/09/2026
+E017,Fortune Kachi Ghani Mustard Oil 1L,Fortune,,hand-written test line,30/09/2026
+E018,Fortune Sunflower Oil 1L,Fortune,,hand-written test line,30/09/2026
+E019,Smoodh Kesar Badam 85ml,Parle Agro,,hand-written test line,30/09/2026
+E020,Smoodh Chocolate Milk 85ml,Parle Agro,,hand-written test line,30/09/2026
+E021,Everest Tikhalal Chilli Powder 100g,Everest,,hand-written test line,30/09/2026
+E022,Everest Kashmirilal 100g,Everest,,hand-written test line,30/09/2026
+E023,MDH Deggi Mirch 100g,MDH,,hand-written test line,30/09/2026
+E024,Catch Red Chilli Powder 200g,Catch,,hand-written test line,30/09/2026
+E025,Chukde Jeera 100g,Chukde,,hand-written test line,30/09/2026
+E026,Everyday Masala Jeera 100g,,,hand-written test line,30/09/2026
+E027,Swachh Paani Drinking Water 1L,,,hand-written test line,30/09/2026
+E028,Bisleri Packaged Drinking Water 1L,Bisleri,,hand-written test line,30/09/2026
+E029,Bailley Drinking Water 1L,Bailley,,hand-written test line,30/09/2026
+E030,Kewal Dhania Powder 200g,Kewal,,hand-written test line,30/09/2026
+E031,Unigreen Jeera 200g,Unigreen,,hand-written test line,30/09/2026
+E032,Cremica Digestive Biscuit 250g,Cremica,,hand-written test line,30/09/2026
+E033,Cremica Butter Cookies 200g,Cremica,,hand-written test line,30/09/2026
+E034,Priyagold Butter Delite 100g,Priyagold,,hand-written test line,30/09/2026
+E035,Priyagold Marie Biscuit 250g,Priyagold,,hand-written test line,30/09/2026
+E036,Glucon D Active ORS Orange 200ml,Glucon D,,hand-written test line,30/09/2026
+E037,Glucon-D Original 1kg,Glucon D,,hand-written test line,30/09/2026
+E038,Bragg Apple Cider Vinegar 473ml,Bragg,,hand-written test line,30/09/2026
+E039,Borges White Wine Vinegar 500ml,Borges,,hand-written test line,30/09/2026
+E040,Borges Extra Light Olive Oil 1L,Borges,,hand-written test line,30/09/2026
+E041,Bakemill Plum Cake 300g,,,hand-written test line,30/09/2026
+E042,Good Life Chilli Powder 200g,Good Life,,hand-written test line,30/09/2026
+E043,Good Life Toor Dal 1kg,Good Life,,hand-written test line,30/09/2026
+E044,Saffola Gold Oil 1L,Saffola,,hand-written test line,30/09/2026
+E045,Amul Pure Ghee 1L,Amul,,hand-written test line,30/09/2026
+E046,Navjivan Rava 500g,Navjivan,,hand-written test line,30/09/2026
+E047,Navjivan Besan 500g,Navjivan,,hand-written test line,30/09/2026
+E048,Anmol Haryana Ghee 1L,,,hand-written test line,30/09/2026
+E049,Pavi's Kashmiri Chilly Powder 100g,Pavi's,,hand-written test line,30/09/2026
+E050,Vasant Chilli Powder 100g,Vasant,,hand-written test line,30/09/2026
+E051,Vasant Garam Masala 50g,Vasant,,hand-written test line,30/09/2026
+E052,Hawa Mahal Teekhi Mirchi 200g,Hawa Mahal,,hand-written test line,30/09/2026
+E053,Tasty Wyn Chilli Powder 250g,Tasty Wyn,,hand-written test line,30/09/2026
+E054,Tasty Wyn Coriander Powder 250g,Tasty Wyn,,hand-written test line,30/09/2026
+E055,Maamis Chilli Powder 100g,Maamis,,hand-written test line,30/09/2026
+E056,Gangwal Atta 1kg,Gangwal,,hand-written test line,30/09/2026
+E057,Asmita Organic Multigrain Atta 1kg,Asmita,,hand-written test line,30/09/2026
+E058,Chokhi Dhani Chilli Garlic Chutney 200g,Chokhi Dhani,,hand-written test line,30/09/2026
+E059,Mor Namak Low Sodium Salt 1kg,,,hand-written test line,30/09/2026
+E060,Tata Salt 1kg,Tata,,hand-written test line,30/09/2026
+E061,Haldiram's Bombay Mix 200g,Haldiram's,,hand-written test line,30/09/2026
+E062,Rose Foods Bombay Mixture 250g,Rose Foods,,hand-written test line,30/09/2026
+E063,Shubh Haldi Powder 200g,Shubh,,hand-written test line,30/09/2026
+E064,Rahul Brand Haldi 200g,Rahul,,hand-written test line,30/09/2026
+E065,Aashirvaad Atta 10kg,Aashirvaad,,hand-written test line,30/09/2026
+E066,Supernova Chilli Powder 100g,Supernova,,hand-written test line,30/09/2026
+E067,Milken Paneer 200g,Milken,,hand-written test line,30/09/2026
+E068,Amul Fresh Paneer 200g,Amul,,hand-written test line,30/09/2026
+E069,Shreemul Ghee 500ml,Shreemul,,hand-written test line,30/09/2026
+E070,Keshav Ghee 1L,Keshav,,hand-written test line,30/09/2026
+E071,Mahisagar Ghee 1L,Mahisagar,,hand-written test line,30/09/2026
+E072,Pawan Refined Soyabean Oil 1L,Pawan,,hand-written test line,30/09/2026
