@@ -22,7 +22,37 @@ FOSCOS_URL = os.environ.get("FOSCOS_URL", "https://foscos.fssai.gov.in/")
 RECALL_URL = os.environ.get("RECALL_URL", "https://foscos.fssai.gov.in/food-recall")
 HEADLESS = os.environ.get("SCRAPER_HEADLESS", "1") != "0"
 MAX_PAGES = int(os.environ.get("SCRAPER_MAX_PAGES", "100"))
-MATCH_THRESHOLD = float(os.environ.get("MATCH_THRESHOLD", "75"))
+# Confidence bands. A match at or above AUTO_PUBLISH_SCORE is shown to the user and alerted straight away.
+# A match from REVIEW_MIN_SCORE up to AUTO_PUBLISH_SCORE goes to the manual review queue and is never shown
+# until a reviewer approves it. Anything lower is discarded. Both values were chosen on the dev set
+# (data/eval/real_*.csv): 65 is the first score above the 60 caps, 85 is where precision stops rising.
+AUTO_PUBLISH_SCORE = float(os.environ.get("AUTO_PUBLISH_SCORE", "85"))
+REVIEW_MIN_SCORE = float(os.environ.get("REVIEW_MIN_SCORE", "65"))
+MATCH_THRESHOLD = REVIEW_MIN_SCORE
+
+# Alerts
+ALERT_CHANNEL = os.environ.get("ALERT_CHANNEL", "outbox")  # outbox | email | console
+OUTBOX_DIR = DATA / "outbox"
+SMTP_HOST = os.environ.get("SMTP_HOST", "")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+SMTP_USER = os.environ.get("SMTP_USER", "")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+ALERT_FROM = os.environ.get("ALERT_FROM", "alerts@recallindia.local")
+DEFAULT_USER_ID = "demo"
+
+# Intake
+GMAIL_CREDENTIALS = os.environ.get("GMAIL_CREDENTIALS", str(ROOT / "credentials.json"))
+GMAIL_TOKEN = os.environ.get("GMAIL_TOKEN", str(ROOT / "token.json"))
+TESSERACT_CMD = os.environ.get("TESSERACT_CMD", "")
+
+# Regulators. Phase 1 ships FSSAI; CDSCO and BIS are Phase 2.
+SOURCES = [
+    {"code": "FSSAI", "name": "FSSAI FoSCoS Food Recall portal", "url": "https://foscos.fssai.gov.in/food-recall",
+     "status": "live", "phase": 1},
+    {"code": "CDSCO", "name": "CDSCO monthly drug alert lists (PDF)", "url": "https://cdsco.gov.in/",
+     "status": "planned", "phase": 2},
+    {"code": "BIS", "name": "BIS product notices", "url": "https://www.bis.gov.in/", "status": "planned", "phase": 2},
+]
 
 RECALL_COLUMNS = [
     "recall_id", "product_name", "brand", "category", "batch_no", "fbo_name", "license_no", "license_type",

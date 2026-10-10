@@ -1,12 +1,12 @@
 import math
 
 import pandas as pd
-from sqlalchemy import (Column, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint,
-                        create_engine, func, select, text)
+from sqlalchemy import (Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text,
+                        UniqueConstraint, create_engine, func, select, text)
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import DeclarativeBase, Session
 
-from .config import DATABASE_URL
+from .config import AUTO_PUBLISH_SCORE, DATABASE_URL, DEFAULT_USER_ID
 
 
 class Base(DeclarativeBase):
@@ -37,12 +37,24 @@ class Recall(Base):
     brand_norm = Column(Text, nullable=False, default="")
     fbo_norm = Column(Text, nullable=False, default="")
     search_norm = Column(Text, nullable=False, default="")
+    source = Column(String(16), nullable=False, server_default="FSSAI")
+    first_seen_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class User(Base):
+    __tablename__ = "users"
+    user_id = Column(String(64), primary_key=True)
+    email = Column(Text)
+    name = Column(Text)
+    alerts_enabled = Column(Boolean, nullable=False, server_default="true")
+    created_at = Column(DateTime, server_default=func.now())
 
 
 class Purchase(Base):
     __tablename__ = "purchases"
     purchase_id = Column(String(64), primary_key=True)
+    user_id = Column(String(64), ForeignKey("users.user_id", ondelete="CASCADE"))
     product_name = Column(Text, nullable=False)
     brand = Column(Text)
     batch_no = Column(String(128))
@@ -50,6 +62,8 @@ class Purchase(Base):
     purchase_date = Column(Date)
     product_norm = Column(Text, nullable=False, default="")
     brand_norm = Column(Text, nullable=False, default="")
+    source = Column(String(16))
+    created_at = Column(DateTime, server_default=func.now())
 
 
 class Match(Base):
@@ -62,8 +76,38 @@ class Match(Base):
     brand_score = Column(Float)
     batch_score = Column(Float)
     notes = Column(Text)
+    status = Column(String(16), nullable=False, server_default="pending_review")
+    reviewed_at = Column(DateTime)
+    reviewed_by = Column(Text)
+    review_note = Column(Text)
     created_at = Column(DateTime, server_default=func.now())
     __table_args__ = (UniqueConstraint("purchase_id", "recall_id"),)
+
+
+class Alert(Base):
+    __tablename__ = "alerts"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    match_id = Column(Integer, ForeignKey("matches.id", ondelete="CASCADE"), nullable=False, unique=True)
+    user_id = Column(String(64), ForeignKey("users.user_id", ondelete="CASCADE"))
+    channel = Column(String(16), nullable=False)
+    status = Column(String(16), nullable=False, server_default="queued")
+    subject = Column(Text, nullable=False)
+    body = Column(Text, nullable=False)
+    error = Column(Text)
+    created_at = Column(DateTime, server_default=func.now())
+    sent_at = Column(DateTime)
+
+
+class Run(Base):
+    __tablename__ = "runs"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    started_at = Column(DateTime, server_default=func.now())
+    finished_at = Column(DateTime)
+    new_recalls = Column(Integer)
+    auto_published = Column(Integer)
+    pending_review = Column(Integer)
+    alerts_queued = Column(Integer)
+    alerts_sent = Column(Integer)
 
 
 class FoodCategory(Base):
@@ -97,6 +141,20 @@ class Rule(Base):
     __table_args__ = (UniqueConstraint("substance_id", "category", "status"),)
 
 
+class GlobalStatus(Base):
+    __tablename__ = "global_status"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    substance_id = Column(String(64), ForeignKey("substances.substance_id", ondelete="CASCADE"), nullable=False)
+    jurisdiction = Column(String(16), nullable=False)
+    status = Column(String(32), nullable=False)
+    note = Column(Text)
+    source = Column(Text)
+    source_url = Column(Text)
+    as_of = Column(Text)
+    verified = Column(String(8))
+    __table_args__ = (UniqueConstraint("substance_id", "jurisdiction"),)
+
+
 class Product(Base):
     __tablename__ = "products"
     barcode = Column(String(14), primary_key=True)
@@ -112,12 +170,29 @@ class Product(Base):
 
 REFERENCE_TABLES = [("food_categories.csv", FoodCategory, "code"), ("substances.csv", Substance, "substance_id")]
 
+# Columns added after the first release. create_all() does not alter existing tables, so these bring an older
+# database up to date. Each statement is safe to run again.
+MIGRATIONS = [
+    "ALTER TABLE recalls ADD COLUMN IF NOT EXISTS source VARCHAR(16) NOT NULL DEFAULT 'FSSAI'",
+    "ALTER TABLE recalls ADD COLUMN IF NOT EXISTS first_seen_at TIMESTAMP DEFAULT now()",
+    "ALTER TABLE purchases ADD COLUMN IF NOT EXISTS user_id VARCHAR(64) REFERENCES users(user_id) ON DELETE CASCADE",
+    "ALTER TABLE purchases ADD COLUMN IF NOT EXISTS source VARCHAR(16)",
+    "ALTER TABLE purchases ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT now()",
+    "ALTER TABLE matches ADD COLUMN IF NOT EXISTS status VARCHAR(16) NOT NULL DEFAULT 'pending_review'",
+    "ALTER TABLE matches ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP",
+    "ALTER TABLE matches ADD COLUMN IF NOT EXISTS reviewed_by TEXT",
+    "ALTER TABLE matches ADD COLUMN IF NOT EXISTS review_note TEXT",
+]
+
 INDEXES = [
     "CREATE EXTENSION IF NOT EXISTS pg_trgm",
     "CREATE INDEX IF NOT EXISTS recalls_product_trgm ON recalls USING gin (product_norm gin_trgm_ops)",
     "CREATE INDEX IF NOT EXISTS recalls_brand_trgm ON recalls USING gin (brand_norm gin_trgm_ops)",
     "CREATE INDEX IF NOT EXISTS recalls_search_trgm ON recalls USING gin (search_norm gin_trgm_ops)",
     "CREATE INDEX IF NOT EXISTS recalls_date ON recalls (recall_date)",
+    "CREATE INDEX IF NOT EXISTS matches_status ON matches (status)",
+    "CREATE INDEX IF NOT EXISTS purchases_user ON purchases (user_id)",
+    "CREATE INDEX IF NOT EXISTS alerts_status ON alerts (status)",
 ]
 
 CANDIDATE_SQL = text("""
@@ -129,6 +204,80 @@ CANDIDATE_SQL = text("""
 """)
 WORD_SIMILARITY_THRESHOLD = 0.3
 
+# Re-running the matcher refreshes scores but never undoes a reviewer's decision, and never pulls back a match
+# the user has already been alerted about.
+SAVE_MATCH_SQL = text("""
+    INSERT INTO matches (purchase_id, recall_id, score, product_score, brand_score, batch_score, notes, status)
+    VALUES (:purchase_id, :recall_id, :score, :product_score, :brand_score, :batch_score, :notes, :status)
+    ON CONFLICT (purchase_id, recall_id) DO UPDATE SET
+        score = EXCLUDED.score, product_score = EXCLUDED.product_score, brand_score = EXCLUDED.brand_score,
+        batch_score = EXCLUDED.batch_score, notes = EXCLUDED.notes,
+        status = CASE
+            WHEN matches.status IN ('approved', 'rejected') THEN matches.status
+            WHEN EXISTS (SELECT 1 FROM alerts a WHERE a.match_id = matches.id) THEN matches.status
+            ELSE EXCLUDED.status END
+""")
+
+REVIEW_QUEUE_SQL = text("""
+    SELECT m.id AS match_id, m.score, m.product_score, m.brand_score, m.batch_score, m.notes, m.created_at,
+           p.purchase_id, p.user_id, p.product_name AS purchase_product, p.brand AS purchase_brand,
+           p.batch_no AS purchase_batch, p.store AS purchase_store, p.purchase_date, p.source AS purchase_source,
+           r.recall_id, r.product_name AS recall_product, r.brand AS recall_brand, r.batch_no AS recall_batch,
+           r.fbo_name AS recall_fbo, r.reason AS recall_reason, r.recall_date, r.source AS recall_source
+    FROM matches m
+    JOIN purchases p ON p.purchase_id = m.purchase_id
+    JOIN recalls r ON r.recall_id = m.recall_id
+    WHERE m.status = 'pending_review'
+    ORDER BY m.score DESC, m.id
+    LIMIT :limit OFFSET :offset
+""")
+
+DECIDE_SQL = text("""
+    UPDATE matches SET status = :status, reviewed_at = now(), reviewed_by = :reviewer, review_note = :note
+    WHERE id = :match_id AND status = 'pending_review'
+    RETURNING id
+""")
+
+# Visible matches (auto-published or approved) that have no alert yet, for users who want alerts.
+ALERTABLE_SQL = text("""
+    SELECT m.id AS match_id, m.score, m.status, p.purchase_id, p.user_id, p.product_name AS purchase_product,
+           p.brand AS purchase_brand, p.batch_no AS purchase_batch, p.store AS purchase_store, p.purchase_date,
+           r.recall_id, r.product_name AS recall_product, r.brand AS recall_brand, r.batch_no AS recall_batch,
+           r.fbo_name AS recall_fbo, r.reason AS recall_reason, r.recall_type, r.hazard, r.recall_date,
+           r.status AS recall_status, r.source AS recall_source, u.email, u.name AS user_name
+    FROM matches m
+    JOIN purchases p ON p.purchase_id = m.purchase_id
+    JOIN recalls r ON r.recall_id = m.recall_id
+    LEFT JOIN users u ON u.user_id = p.user_id
+    WHERE m.status IN ('auto_published', 'approved')
+      AND NOT EXISTS (SELECT 1 FROM alerts a WHERE a.match_id = m.id)
+      AND COALESCE(u.alerts_enabled, true)
+    ORDER BY m.id
+""")
+
+INSERT_ALERT_SQL = text("""
+    INSERT INTO alerts (match_id, user_id, channel, status, subject, body)
+    VALUES (:match_id, :user_id, :channel, 'queued', :subject, :body)
+    ON CONFLICT (match_id) DO NOTHING
+""")
+
+QUEUED_ALERTS_SQL = text("""
+    SELECT a.id, a.match_id, a.user_id, a.channel, a.subject, a.body, u.email
+    FROM alerts a LEFT JOIN users u ON u.user_id = a.user_id
+    WHERE a.status = 'queued' ORDER BY a.id
+""")
+
+MARK_ALERT_SQL = text("""
+    UPDATE alerts SET status = :status, error = :error,
+           sent_at = CASE WHEN :status = 'sent' THEN now() ELSE sent_at END
+    WHERE id = :id
+""")
+
+NEW_RECALLS_SQL = text("""
+    SELECT count(*) FROM recalls
+    WHERE first_seen_at > COALESCE((SELECT max(finished_at) FROM runs), 'epoch')
+""")
+
 
 def get_engine(url=None):
     return create_engine(url or DATABASE_URL, future=True, pool_pre_ping=True)
@@ -139,17 +288,28 @@ def init_db(engine):
         conn.execute(text(INDEXES[0]))
     Base.metadata.create_all(engine)
     with engine.begin() as conn:
-        for stmt in INDEXES[1:]:
+        for stmt in MIGRATIONS + INDEXES[1:]:
             conn.execute(text(stmt))
         conn.execute(text("SELECT set_limit(0.2)"))
+        conn.execute(text("INSERT INTO users (user_id, name) VALUES (:u, 'Demo user') ON CONFLICT DO NOTHING"),
+                     {"u": DEFAULT_USER_ID})
+        # Upgrading an older database: purchases without an owner go to the demo user, and matches saved before
+        # the review queue existed get the status their score earns.
+        conn.execute(text("UPDATE purchases SET user_id = :u WHERE user_id IS NULL"), {"u": DEFAULT_USER_ID})
+        conn.execute(text("UPDATE matches SET status = 'auto_published' WHERE status = 'pending_review' "
+                          "AND reviewed_at IS NULL AND score >= :auto"), {"auto": AUTO_PUBLISH_SCORE})
+
+
+def _clean_value(v):
+    if v is None or v is pd.NaT:
+        return None
+    if isinstance(v, float) and math.isnan(v):
+        return None
+    return v
 
 
 def _records(df, columns):
-    out = []
-    for rec in df[columns].to_dict("records"):
-        out.append({k: (None if (isinstance(v, float) and math.isnan(v)) or v is pd.NaT else v)
-                    for k, v in rec.items()})
-    return out
+    return [{k: _clean_value(v) for k, v in rec.items()} for rec in df[columns].to_dict("records")]
 
 
 def upsert(engine, model, df, key):
@@ -158,11 +318,32 @@ def upsert(engine, model, df, key):
     if not rows:
         return 0
     stmt = insert(model.__table__).values(rows)
-    stmt = stmt.on_conflict_do_update(index_elements=[key],
-                                      set_={c: stmt.excluded[c] for c in cols if c != key})
+    update = {c: stmt.excluded[c] for c in cols if c != key}
+    stmt = stmt.on_conflict_do_update(index_elements=[key], set_=update) if update else \
+        stmt.on_conflict_do_nothing(index_elements=[key])
     with engine.begin() as conn:
         conn.execute(stmt)
     return len(rows)
+
+
+def ensure_users(engine, user_ids):
+    ids = sorted({u for u in user_ids if u})
+    if ids:
+        with engine.begin() as conn:
+            conn.execute(text("INSERT INTO users (user_id) VALUES (:u) ON CONFLICT DO NOTHING"),
+                         [{"u": u} for u in ids])
+    return ids
+
+
+def save_purchases(engine, purchases, user_id=None, source=None):
+    df = purchases.copy()
+    if "user_id" not in df.columns or df["user_id"].isna().all():
+        df["user_id"] = user_id or DEFAULT_USER_ID
+    df["user_id"] = df["user_id"].fillna(user_id or DEFAULT_USER_ID)
+    if source and ("source" not in df.columns or df["source"].isna().all()):
+        df["source"] = source
+    ensure_users(engine, df["user_id"])
+    return upsert(engine, Purchase, df, "purchase_id")
 
 
 def load_reference(engine, directory):
@@ -171,12 +352,16 @@ def load_reference(engine, directory):
     counts = {}
     for name, model, key in REFERENCE_TABLES:
         counts[model.__tablename__] = upsert(engine, model, pd.read_csv(d / name, dtype=str, keep_default_na=False), key)
-    rules = pd.read_csv(d / "rules.csv", dtype=str, keep_default_na=False)
-    with engine.begin() as conn:
-        conn.execute(Rule.__table__.delete())
-        if len(rules):
-            conn.execute(Rule.__table__.insert(), rules.to_dict("records"))
-    counts["rules"] = len(rules)
+    for name, model in (("rules.csv", Rule), ("global_status.csv", GlobalStatus)):
+        path = d / name
+        if not path.exists():
+            continue
+        frame = pd.read_csv(path, dtype=str, keep_default_na=False)
+        with engine.begin() as conn:
+            conn.execute(model.__table__.delete())
+            if len(frame):
+                conn.execute(model.__table__.insert(), frame.to_dict("records"))
+        counts[model.__tablename__] = len(frame)
     return counts
 
 
@@ -185,6 +370,11 @@ def load_rulebook(engine):
     with engine.connect() as conn:
         frames = [pd.read_sql(select(m.__table__), conn).fillna("").astype(str) for m in (Substance, Rule, FoodCategory)]
     return RuleBook(*frames)
+
+
+def load_global_status(engine):
+    with engine.connect() as conn:
+        return pd.read_sql(select(GlobalStatus.__table__), conn).fillna("").astype(str)
 
 
 def read_table(engine, model):
@@ -203,35 +393,96 @@ def candidates(engine, product_norm, brand_norm="", limit=25):
     return [dict(r) for r in rows]
 
 
+MATCH_COLUMNS = ["purchase_id", "recall_id", "score", "product_score", "brand_score", "batch_score", "notes", "status"]
+
+
 def save_matches(engine, matches):
     if matches.empty:
         return 0
-    rows = _records(matches, ["purchase_id", "recall_id", "score", "product_score", "brand_score",
-                              "batch_score", "notes"])
-    stmt = insert(Match.__table__).values(rows)
-    stmt = stmt.on_conflict_do_update(
-        index_elements=["purchase_id", "recall_id"],
-        set_={c: stmt.excluded[c] for c in ["score", "product_score", "brand_score", "batch_score", "notes"]})
+    if "status" not in matches.columns:
+        from .review import assign_status
+        matches = assign_status(matches)
+    rows = _records(matches, MATCH_COLUMNS)
     with engine.begin() as conn:
-        conn.execute(stmt)
+        conn.execute(SAVE_MATCH_SQL, rows)
     return len(rows)
 
 
-def match_from_db(engine, threshold):
+def match_from_db(engine, floor=None, purchase_ids=None):
+    """Score every purchase (or just `purchase_ids`) against its trigram candidates and band the results."""
+    from .config import REVIEW_MIN_SCORE
     from .matching import score_pair
+    from .review import band
+    floor = REVIEW_MIN_SCORE if floor is None else floor
     recalls = read_table(engine, Recall).set_index("recall_id", drop=False)
     purchases = read_table(engine, Purchase)
+    if purchase_ids is not None:
+        purchases = purchases[purchases["purchase_id"].isin(set(purchase_ids))]
     rows = []
     for p in purchases.to_dict("records"):
         for c in candidates(engine, p["product_norm"], p["brand_norm"]):
             r = recalls.loc[c["recall_id"]].to_dict()
             score, parts, reasons = score_pair(r, p)
-            if score >= threshold:
+            status = band(score, floor=floor)
+            if status:
                 rows.append({"purchase_id": p["purchase_id"], "recall_id": r["recall_id"], "score": score,
                              "product_score": parts.get("product"), "brand_score": parts.get("brand"),
-                             "batch_score": parts.get("batch"), "notes": "; ".join(reasons)})
-    cols = ["purchase_id", "recall_id", "score", "product_score", "brand_score", "batch_score", "notes"]
-    return pd.DataFrame(rows, columns=cols)
+                             "batch_score": parts.get("batch"), "notes": "; ".join(reasons), "status": status})
+    return pd.DataFrame(rows, columns=MATCH_COLUMNS)
+
+
+def review_queue(engine, limit=50, offset=0):
+    with engine.connect() as conn:
+        return [dict(r) for r in conn.execute(REVIEW_QUEUE_SQL, {"limit": limit, "offset": offset}).mappings()]
+
+
+def decide(engine, match_id, approve, reviewer=None, note=None):
+    """Approve or reject a pending match. Returns False if it is not (or no longer) pending."""
+    from .review import APPROVED, REJECTED
+    with engine.begin() as conn:
+        row = conn.execute(DECIDE_SQL, {"status": APPROVED if approve else REJECTED, "reviewer": reviewer,
+                                        "note": note, "match_id": int(match_id)}).first()
+    return row is not None
+
+
+def alertable(engine):
+    with engine.connect() as conn:
+        return [dict(r) for r in conn.execute(ALERTABLE_SQL).mappings()]
+
+
+def insert_alerts(engine, alerts):
+    if not alerts:
+        return 0
+    with engine.begin() as conn:
+        conn.execute(INSERT_ALERT_SQL, alerts)
+    return len(alerts)
+
+
+def queued_alerts(engine):
+    with engine.connect() as conn:
+        return [dict(r) for r in conn.execute(QUEUED_ALERTS_SQL).mappings()]
+
+
+def mark_alert(engine, alert_id, status, error=None):
+    with engine.begin() as conn:
+        conn.execute(MARK_ALERT_SQL, {"id": alert_id, "status": status, "error": error})
+
+
+def new_recall_count(engine):
+    with engine.connect() as conn:
+        return conn.execute(NEW_RECALLS_SQL).scalar()
+
+
+def start_run(engine):
+    with engine.begin() as conn:
+        return conn.execute(text("INSERT INTO runs DEFAULT VALUES RETURNING id")).scalar()
+
+
+def finish_run(engine, run_id, **counts):
+    cols = ["new_recalls", "auto_published", "pending_review", "alerts_queued", "alerts_sent"]
+    with engine.begin() as conn:
+        conn.execute(text(f"UPDATE runs SET finished_at = now(), {', '.join(f'{c} = :{c}' for c in cols)} "
+                          "WHERE id = :id"), {"id": run_id, **{c: counts.get(c) for c in cols}})
 
 
 def search_recalls(session: Session, q=None, category=None, limit=50, offset=0):

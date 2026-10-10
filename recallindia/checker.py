@@ -1,5 +1,5 @@
 from .clean import normalize_name
-from .config import MATCH_THRESHOLD
+from .config import AUTO_PUBLISH_SCORE, MATCH_THRESHOLD
 from .matching import score_pair
 
 DISCLAIMER = ("RecallIndia gives regulatory information from FSSAI sources, not medical advice. "
@@ -24,8 +24,17 @@ def find_recalls(recall_lookup, product_name, brand, threshold=MATCH_THRESHOLD):
                         "batch_no": recall.get("batch_no"), "score": score})
     return sorted(out, key=lambda r: -r["score"])
 
+def add_global_status(findings, global_status):
+    """Attach each ingredient's status in other jurisdictions. Information only; the verdict uses FSSAI rules."""
+    for f in findings:
+        rows = global_status.table[global_status.table["substance_id"] == f["substance_id"]]
+        f["abroad"] = [{"jurisdiction": r["jurisdiction"], "status": r["status"], "note": r["note"],
+                        "source_url": r["source_url"]} for r in rows.to_dict("records")]
+    return findings
+
+
 def check_product(rulebook, barcode=None, ingredients_text=None, category=None, product_name=None, brand=None,
-                  fetch_product=None, recall_lookup=None):
+                  fetch_product=None, recall_lookup=None, global_status=None):
     product, codes = None, []
     if barcode:
         product = fetch_product(barcode) if fetch_product else None
@@ -40,11 +49,13 @@ def check_product(rulebook, barcode=None, ingredients_text=None, category=None, 
     if not ingredients_text and not codes:
         raise ProductNotFound("No ingredients to check. Add the ingredient list from the label.")
     result = rulebook.check(ingredients_text, category, codes)
+    if global_status is not None:
+        add_global_status(result["findings"], global_status)
     result["product"] = {"barcode": barcode, "product_name": product_name, "brand": brand,
                          "source": product.get("source") if product else "label text",
                          "image_url": product.get("image_url") if product else None}
     result["ingredients_text"] = ingredients_text
-    result["recalls"] = find_recalls(recall_lookup, product_name, brand)
+    result["recalls"] = find_recalls(recall_lookup, product_name, brand, threshold=AUTO_PUBLISH_SCORE)
     if result["recalls"]:
         if RANK[result["verdict"]] < RANK["caution"]:
             result["verdict"] = "caution"

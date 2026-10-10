@@ -1,0 +1,20 @@
+SHREE GANESH KIRANA STORES
+Shop 4, Link Road, Malad West, Mumbai
+GSTIN: 27ABCDE1234F1Z5   Ph: 9820012345
+Bill No: 4521        Date: 05/10/2026 18:42
+------------------------------------------
+Item                Qty   Rate   Amount
+------------------------------------------
+EASTERN CHILLI PWD 100G   1   45.00   45.00
+09041100 RAMDEV HING 50G   2   60.00  120.00
+VPR GOLD COCONUT OIL 1L   1  210.00  210.00
+TATA SALT 1KG             1   28.00   28.00
+AASHIRVAAD ATTA 5KG       1  265.00  265.00
+------------------------------------------
+Total Items: 6           Sub Total  668.00
+CGST 2.5%                            8.35
+SGST 2.5%                            8.35
+Net Amount                         684.70
+Cash                               700.00
+Change                              15.30
+Thank you! Visit again

@@ -1,0 +1,71 @@
+purchase_id,product_name,brand,batch_no,store,purchase_date
+H001,RAMDEV MIXED MASALA 100G,Ramdev,02,holdout line,10/10/2026
+H002,VPR Gold Coconut Oil 1L,VPR Gold,,holdout line,10/10/2026
+H003,PSK COCONUT OIL 500ML,PSK,010,holdout line,10/10/2026
+H004,Nirapara Rice Flour 1kg,Nirapara,FPUP250077,holdout line,10/10/2026
+H005,Nirapara Rice Flour 1kg,Nirapara,FPUP240011,holdout line,10/10/2026
+H006,Vimal Aqua Packaged Drinking Water 1L,Vimal Aqua,05,holdout line,10/10/2026
+H007,KESAVA TAMARIND 250G,Kesava,,holdout line,10/10/2026
+H008,Parshant Cow Ghee 1L,Parshant,123,holdout line,10/10/2026
+H009,Bodhini Half Cooked Poori,Bodhini,,holdout line,10/10/2026
+H010,Jaya Rice 10kg,Jaya,,holdout line,10/10/2026
+H011,Ammas Pastries Rusk 200g,Ammas,AF-06,holdout line,10/10/2026
+H012,KUG Bismi Chilli Powder 250g,KUG Bismi,BSJC5,holdout line,10/10/2026
+H013,K-Pra Jawas Chutney Powder,K-Pra,,holdout line,10/10/2026
+H014,JP Fish Fry Masala 100g,JP Masala,FY 2,holdout line,10/10/2026
+H015,Bibo Bakes Marble Cake,Bibo Bakes,,holdout line,10/10/2026
+H016,BIBO BAKES BREAD 400G,Bibo Bakes,,holdout line,10/10/2026
+H017,Lakshmi Sweets Pakkavada 200g,Lakshmi Sweets,,holdout line,10/10/2026
+H018,Keraleats Roasted Coriander Powder,Keraleats,,holdout line,10/10/2026
+H019,KERALEATS CHILLI POWDER 250G,Keraleats,,holdout line,10/10/2026
+H020,KK Foods Corn Puttu Powder 1kg,KK Foods,C P 203,holdout line,10/10/2026
+H021,Q Eat Carrot Pudding,Q Eat,,holdout line,10/10/2026
+H022,Sunpure Chakki Atta 5kg,Sunpure,A4181117,holdout line,10/10/2026
+H023,Unati Apple Cider Vinegar 500ml,Unati,,holdout line,10/10/2026
+H024,Grameen Corn Rava 500g,Grameen,,holdout line,10/10/2026
+H025,Rasa Kashmiri Chilli Powder 100g,Rasa,,holdout line,10/10/2026
+H026,Paris Ghee Rusk,Paris,1026,holdout line,10/10/2026
+H027,Flavour Farms Spicy Mixture 150g,Flavour Farms,A01,holdout line,10/10/2026
+H028,Cooba Chocolate Donut Cake,Cooba,DOCH07B1,holdout line,10/10/2026
+H029,Evocus Black Alkaline Water 500ml,Evocus,B 067,holdout line,10/10/2026
+H030,Green Mount Chilli Powder 200g,Green Mount,CH-1716,holdout line,10/10/2026
+H031,Saras Kashmiri Chilli Powder,Saras,,holdout line,10/10/2026
+H032,Richme Chilli Powder 100g,Richme,,holdout line,10/10/2026
+H033,Hum Tum Crackers,Sobisco,,holdout line,10/10/2026
+H034,Surabhi Ginger Garlic Paste 200g,Surabhi,019KE,holdout line,10/10/2026
+H035,Dhruv Jeera 1kg,Dhruv Spices,1,holdout line,10/10/2026
+H036,Swati Gold Maida 1kg,Swati,,holdout line,10/10/2026
+H037,Dua Nutrifood Pasta,Dua,DNFRV25JUL,holdout line,10/10/2026
+H038,Naturelink Fruit Juice 1L,Naturelink,,holdout line,10/10/2026
+H039,Shiv International Kuttu Atta 500g,Shiv International,A103299,holdout line,10/10/2026
+H040,Rang Madhur Cow Ghee 1L,Rang Madhur,09-24,holdout line,10/10/2026
+H041,Gold Bansari Pure Cow Ghee 1L,Gold Bansari,,holdout line,10/10/2026
+H042,Vahini Lal Mirch Powder,Vahini,08,holdout line,10/10/2026
+H043,Super Sourabh Lal Mirch Powder 200g,Sourabh,,holdout line,10/10/2026
+H044,Heera Super Spices Jeera 100g,Heera,,holdout line,10/10/2026
+H045,Gennie Electrolyte Drink,Gennie,,holdout line,10/10/2026
+H046,Ras Limboo Pickle 250g,Ras,GL24,holdout line,10/10/2026
+H047,Magic Faces Bombay Mixture,Magic Faces,,holdout line,10/10/2026
+H048,Kushal Coriander Powder,Kushal,OB1,holdout line,10/10/2026
+H049,Pon Nira Kara Seva 200g,Pon Nira,,holdout line,10/10/2026
+H050,Hy-Safe Packaged Drinking Water 1L,Hy-Safe,,holdout line,10/10/2026
+H051,RMDEV MIX MSALA 50G,,,holdout receipt-style line,10/10/2026
+H052,VPR GLD COCNT OIL 1L,,,holdout receipt-style line,10/10/2026
+H053,EVOCUS ALK WATER 1L,,,holdout receipt-style line,10/10/2026
+H054,Tata Salt 1kg,Tata,,holdout negative,10/10/2026
+H055,Aashirvaad Shudh Chakki Atta 5kg,Aashirvaad,,holdout negative,10/10/2026
+H056,Amul Pure Ghee 1L,Amul,,holdout negative,10/10/2026
+H057,Everest Kashmiri Lal Chilli Powder 100g,Everest,,holdout negative,10/10/2026
+H058,Bisleri Packaged Drinking Water 1L,Bisleri,,holdout negative,10/10/2026
+H059,Parachute Coconut Oil 500ml,Parachute,,holdout negative,10/10/2026
+H060,MDH Chunky Chat Masala,MDH,,holdout negative,10/10/2026
+H061,Haldiram's Bombay Mix 200g,Haldiram's,,holdout negative,10/10/2026
+H062,Britannia Marie Gold,Britannia,,holdout negative,10/10/2026
+H063,Ramdev Hing 50g,Ramdev,,holdout negative,10/10/2026
+H064,Green Mount Chilli Powder 200g,Green Mount,CH-2001,holdout negative,10/10/2026
+H065,Saffola Gold Oil 1L,Saffola,,holdout negative,10/10/2026
+H066,Paper Boat Aamras,Paper Boat,,holdout negative,10/10/2026
+H067,Keya Kashmiri Chilli,Keya,,holdout negative,10/10/2026
+H068,Patanjali Cow Ghee 500ml,Patanjali,,holdout negative,10/10/2026
+H069,Kissan Mixed Fruit Jam,Kissan,,holdout negative,10/10/2026
+H070,Unibic Choco Chip Cookies,Unibic,,holdout negative,10/10/2026

@@ -12,3 +12,7 @@ data/reports/*
 !data/reports/.gitkeep
 data/discovery/*
 !data/discovery/.gitkeep
+data/outbox/
+data/intake/
+credentials.json
+token.json

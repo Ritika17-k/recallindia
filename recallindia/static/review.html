@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review Queue</title>
+<style>
+  :root { --bg:#f6f5f2; --card:#fff; --ink:#1d1d1b; --muted:#6b6b66; --line:#e3e1db; --ok:#1f7a4d; --no:#b3372f; --tag:#efe9dc; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#161615; --card:#1f1f1d; --ink:#ecebe7; --muted:#a3a29c; --line:#34332f; --ok:#4cc488; --no:#f07468; --tag:#2c2a25; } }
+  * { box-sizing:border-box }
+  body { margin:0; font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif; background:var(--bg); color:var(--ink) }
+  header { padding:20px 16px 8px; max-width:980px; margin:auto }
+  h1 { font-size:20px; margin:0 0 4px } header p { margin:0; color:var(--muted) }
+  main { max-width:980px; margin:auto; padding:8px 16px 40px }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; margin:12px 0 }
+  .top { display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; margin-bottom:10px }
+  .score { font-weight:650; font-size:18px } .tag { background:var(--tag); border-radius:6px; padding:1px 8px; font-size:13px; color:var(--muted) }
+  .pair { display:grid; grid-template-columns:1fr 1fr; gap:12px }
+  .side h3 { margin:0 0 4px; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted) }
+  .side .name { font-weight:600 } .side div { overflow-wrap:anywhere }
+  .meta { color:var(--muted); font-size:13px }
+  .actions { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap }
+  input { flex:1; min-width:160px; padding:7px 9px; border:1px solid var(--line); border-radius:7px; background:transparent; color:inherit }
+  button { padding:7px 14px; border-radius:7px; border:1px solid var(--line); background:transparent; color:inherit; cursor:pointer; font-weight:600 }
+  button.ok { border-color:var(--ok); color:var(--ok) } button.no { border-color:var(--no); color:var(--no) }
+  .empty { color:var(--muted); padding:30px 0; text-align:center } .done { opacity:.45 }
+  @media (max-width:640px) { .pair { grid-template-columns:1fr } .actions input { flex:1 1 100% } .actions button { flex:1 } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Review queue</h1>
+  <p>Medium-confidence matches. Users see nothing until you approve; approving sends their alert.</p>
+</header>
+<main id="list"><p class="empty">Loading…</p></main>
+<script>
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const parts = r => ["brand","product","batch"].map(k => r[k+"_score"] == null ? null : `${k} ${Math.round(r[k+"_score"])}`).filter(Boolean).join(" · ");
+async function load() {
+  const list = document.getElementById("list");
+  try {
+    const rows = await (await fetch("/review?limit=200")).json();
+    if (!rows.length) { list.innerHTML = '<p class="empty">Nothing waiting for review.</p>'; return; }
+    list.innerHTML = rows.map(r => `
+      <section class="card" id="m${r.match_id}">
+        <div class="top"><span class="score">${Math.round(r.score)}</span>
+          <span class="tag">${esc(parts(r))}</span>${r.notes ? `<span class="tag">${esc(r.notes)}</span>` : ""}</div>
+        <div class="pair">
+          <div class="side"><h3>Purchase</h3><div class="name">${esc(r.purchase_product)}</div>
+            <div class="meta">brand ${esc(r.purchase_brand || "–")} · batch ${esc(r.purchase_batch || "–")}</div>
+            <div class="meta">${esc(r.purchase_store || "")} ${esc(r.purchase_date || "")} · user ${esc(r.user_id || "–")}</div></div>
+          <div class="side"><h3>${esc(r.recall_source || "FSSAI")} recall ${esc(r.recall_id)}</h3>
+            <div class="name">${esc(r.recall_brand || "–")} — ${esc(r.recall_product)}</div>
+            <div class="meta">batch ${esc(r.recall_batch || "–")} · ${esc(r.recall_fbo || "")}</div>
+            <div class="meta">${esc(r.recall_date || "")} · ${esc(r.recall_reason || "no reason given")}</div></div>
+        </div>
+        <div class="actions"><input placeholder="Note (optional)" id="n${r.match_id}">
+          <button class="ok" onclick="decide(${r.match_id},'approve')">Approve</button>
+          <button class="no" onclick="decide(${r.match_id},'reject')">Reject</button></div>
+      </section>`).join("");
+  } catch (e) { list.innerHTML = `<p class="empty">Could not load the queue: ${esc(e.message)}</p>`; }
+}
+async function decide(id, decision) {
+  const card = document.getElementById("m" + id);
+  const note = document.getElementById("n" + id).value || null;
+  const res = await fetch(`/review/${id}`, {method:"POST", headers:{"Content-Type":"application/json"},
+                                            body: JSON.stringify({decision, note, reviewer: "admin page"})});
+  if (res.ok) { card.classList.add("done"); card.querySelector(".actions").innerHTML = `<span class="meta">${decision === "approve" ? "Approved, alert sent" : "Rejected"}</span>`; }
+  else { alert((await res.json()).detail || "Failed"); }
+}
+load();
+</script>
+</body>
+</html>
