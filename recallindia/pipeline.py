@@ -40,5 +40,5 @@ def refresh(engine, recalls=None, send=True, channel=None):
     c = _counts(matches)
     summary = {"run_id": run_id, "new_recalls": new, "auto_published": c[AUTO], "pending_review": c[PENDING],
                "alerts_queued": queued, "alerts_sent": sent, "alerts_failed": failed}
-    finish_run(engine, run_id, **summary)
+    finish_run(engine, run_id, **{k: v for k, v in summary.items() if k != "run_id"})
     return summary

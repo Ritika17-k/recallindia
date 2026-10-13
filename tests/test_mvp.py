@@ -150,7 +150,7 @@ def test_item_line_strips_codes_and_prices():
     assert parse_item_line("123456 78.00") is None
 
 
-@pytest.mark.skipif(shutil.which("tesseract") is None, reason="Tesseract not installed")
+@pytest.mark.skipif(not (config.TESSERACT_CMD or shutil.which("tesseract")), reason="Tesseract not installed")
 def test_receipt_photo_ocr():
     pytest.importorskip("pytesseract")
     from recallindia.receipts import import_receipt
