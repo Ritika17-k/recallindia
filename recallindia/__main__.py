@@ -128,6 +128,9 @@ def cmd_run(args):
         recalls, report = clean_recalls(_read_csv(src))
         recalls.to_pickle(_clean_path("recalls"))
         print(f"Cleaned {report['rows_out']} recalls from {src.name}")
+    elif _clean_path("recalls").exists():
+        recalls = pd.read_pickle(_clean_path("recalls"))
+        print(f"Loading {len(recalls)} cleaned recalls from {_clean_path('recalls').name}")
     engine = get_engine()
     init_db(engine)
     summary = refresh(engine, recalls, send=not args.no_send, channel=args.channel)

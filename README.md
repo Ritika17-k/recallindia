@@ -196,6 +196,7 @@ copy .env.example .env
 python -m recallindia scrape                 # FSSAI recalls from FoSCoS
 python -m recallindia clean
 python -m recallindia report                 # data quality report
+python -m recallindia load                   # recalls into PostgreSQL
 python -m recallindia load-rules             # FSSAI rules and global status
 python -m recallindia users add ritu --email you@example.com --name Ritu
 python -m recallindia import-email "All mail.mbox" --user ritu
