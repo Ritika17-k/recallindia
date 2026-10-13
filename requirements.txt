@@ -10,4 +10,5 @@ python-multipart>=0.0.9
 python-dotenv>=1.0
 pytesseract>=0.3.10
 pillow>=10.0
+pywebpush>=2.0
 pytest>=8.0

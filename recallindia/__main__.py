@@ -356,9 +356,44 @@ def cmd_check(args):
     print(result["disclaimer"])
 
 
+def cmd_vapid_keys(args):
+    from .push import generate_vapid_keys
+    public, private = generate_vapid_keys()
+    print("Add these to .env (keep the private key secret):\n")
+    print(f"VAPID_PUBLIC_KEY={public}")
+    print(f"VAPID_PRIVATE_KEY={private}")
+    print("VAPID_SUBJECT=mailto:you@example.com")
+
+
+def setup_database():
+    """First start on a new server: tables, rules, and the bundled FSSAI recall snapshot if there are no recalls yet."""
+    from sqlalchemy import func, select
+    from .clean import clean_recalls
+    from .config import SEED_DIR
+    from .db import Recall, get_engine, init_db, load_reference, upsert
+    engine = get_engine()
+    init_db(engine)
+    print("Reference data:", load_reference(engine, REFERENCE_DIR))
+    with engine.connect() as conn:
+        count = conn.scalar(select(func.count()).select_from(Recall.__table__))
+    if count == 0:
+        seeds = sorted(SEED_DIR.glob("*.csv"))
+        if seeds:
+            recalls, report = clean_recalls(_read_csv(seeds[-1]))
+            n = upsert(engine, Recall, recalls.dropna(subset=["recall_id", "product_name"]), "recall_id")
+            print(f"Loaded {n} recalls from {seeds[-1].name}")
+    else:
+        print(f"{count} recalls already loaded")
+
+
 def cmd_serve(args):
+    import os
     import uvicorn
-    uvicorn.run("recallindia.api:app", host=args.host, port=args.port, reload=False)
+    if args.init:
+        setup_database()
+    port = args.port or int(os.environ.get("PORT", "8000"))
+    uvicorn.run("recallindia.api:app", host=args.host, port=port, reload=False, proxy_headers=True,
+                forwarded_allow_ips="*")
 
 
 def main(argv=None):
@@ -452,9 +487,11 @@ def main(argv=None):
     s.add_argument("--dir")
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_check)
-    s = sub.add_parser("serve", help="start the API")
+    sub.add_parser("vapid-keys", help="generate keys for phone notifications").set_defaults(func=cmd_vapid_keys)
+    s = sub.add_parser("serve", help="start the API and the app")
     s.add_argument("--host", default="127.0.0.1")
-    s.add_argument("--port", type=int, default=8000)
+    s.add_argument("--port", type=int, help="default: $PORT or 8000")
+    s.add_argument("--init", action="store_true", help="set up tables, rules and seed recalls first (for hosting)")
     s.set_defaults(func=cmd_serve)
     args = p.parse_args(argv)
     args.func(args)

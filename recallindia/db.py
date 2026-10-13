@@ -103,6 +103,16 @@ class Alert(Base):
     sent_at = Column(DateTime)
 
 
+class PushSubscription(Base):
+    __tablename__ = "push_subscriptions"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(64), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    endpoint = Column(Text, nullable=False, unique=True)
+    p256dh = Column(Text, nullable=False)
+    auth = Column(Text, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+
 class Run(Base):
     __tablename__ = "runs"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -169,6 +179,7 @@ class Product(Base):
     additive_codes = Column(Text)
     category = Column(String(16))
     image_url = Column(Text)
+    categories_tags = Column(Text)
     source = Column(Text)
     fetched_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -192,6 +203,7 @@ MIGRATIONS = [
     "ALTER TABLE purchases ADD COLUMN IF NOT EXISTS status VARCHAR(16) NOT NULL DEFAULT 'active'",
     "ALTER TABLE alerts ADD COLUMN IF NOT EXISTS feedback VARCHAR(16)",
     "ALTER TABLE alerts ADD COLUMN IF NOT EXISTS feedback_at TIMESTAMP",
+    "ALTER TABLE products ADD COLUMN IF NOT EXISTS categories_tags TEXT",
 ]
 
 INDEXES = [
@@ -561,6 +573,28 @@ FEEDBACK_SQL = text("""
 # but keeps anything a reviewer decided.
 RESET_MATCHES_SQL = text("DELETE FROM matches WHERE purchase_id = :p AND reviewed_at IS NULL")
 DELETE_PURCHASE_SQL = text("DELETE FROM purchases WHERE purchase_id = :p AND user_id = :u RETURNING purchase_id")
+
+
+SAVE_PUSH_SQL = text("""
+    INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (:u, :e, :p, :a)
+    ON CONFLICT (endpoint) DO UPDATE SET user_id = EXCLUDED.user_id, p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth
+""")
+PUSH_SUBS_SQL = text("SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = :u")
+DELETE_PUSH_SQL = text("DELETE FROM push_subscriptions WHERE user_id = :u AND endpoint = :e")
+
+
+def save_push_subscription(engine, user_id, endpoint, p256dh, auth):
+    with engine.begin() as conn:
+        conn.execute(SAVE_PUSH_SQL, {"u": user_id, "e": endpoint, "p": p256dh, "a": auth})
+
+
+def push_subscriptions(engine, user_id):
+    return _rows(engine, PUSH_SUBS_SQL, u=user_id)
+
+
+def delete_push_subscription(engine, user_id, endpoint):
+    with engine.begin() as conn:
+        conn.execute(DELETE_PUSH_SQL, {"u": user_id, "e": endpoint})
 
 
 def _rows(engine, sql, **params):

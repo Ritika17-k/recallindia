@@ -108,20 +108,22 @@ RecallIndia has a phone-friendly web app (a PWA) served by the same FastAPI serv
 python -m recallindia serve
 ```
 
-Then open **http://127.0.0.1:8000** (it goes to `/app/`). On first launch, enter your name to create an account.
+Then open **http://localhost:8000** (it goes to `/app/`). On first launch, enter your name to create an account. With `GOOGLE_CLIENT_ID` set, the app shows **Continue with Google** instead, and each person's products and alerts are private to their Google account.
 
 | Screen | What it does |
 |---|---|
 | Home | Whether anything you bought matches a recall, how many products are watched, the latest FSSAI recalls |
 | Scan | Barcode by live camera (or a photo of it, or typed digits), a photo of the ingredient label (OCR), or typed ingredients |
-| Scan result | The verdict, each flagged ingredient with its FSSAI rule and status abroad, recall matches, and "Save to My Products" |
+| Scan result | The verdict, each flagged ingredient with its FSSAI rule and status abroad, recall matches, "Save to My Products", and for scanned barcodes, similar products from the same category that don't list the flagged ingredients (Open Food Facts, India, cached for a day; worded as facts, not a safety rating) |
 | My Products | Everything you bought, grouped by shop and date, with its source (Gmail order, receipt photo, barcode, added). Import order emails, scan a receipt, add a product, set a batch number (rechecks it), mark finished, delete |
-| Alerts | Each recall alert with what to do, and "I have this batch" / "Not my batch" |
+| Alerts | Each recall alert with what to do, and "I have this batch" / "Not my batch". With notification keys set, new alerts also arrive as phone notifications |
 | Ingredient lookup | Global Regulatory Status for any ingredient or E-number |
 
 Loose goods and fresh produce on receipts or orders (onions, loose sugar, eggs) aren't tracked, because they have no brand or batch to match against a recall notice. Imports list them as "not tracked".
 
-**On your phone:** start the server with `python -m recallindia serve --host 0.0.0.0`, find your laptop's IP with `ipconfig` (IPv4 Address), and open `http://<that IP>:8000` on a phone on the same Wi-Fi. Browsers only allow the live camera on https or on the laptop itself, so on a phone over Wi-Fi use **Take a photo of the barcode**, which works everywhere. Chrome's menu then offers **Add to Home screen**, so it opens like an app. When it's hosted with https (Render, Railway), the live camera works on phones too.
+**Hosting on https:** `DEPLOY.md` walks through Render (free tier) with the included `Dockerfile` and `render.yaml`, plus setting up Google sign-in and notification keys.
+
+**On your phone (without hosting):** start the server with `python -m recallindia serve --host 0.0.0.0`, find your laptop's IP with `ipconfig` (IPv4 Address), and open `http://<that IP>:8000` on a phone on the same Wi-Fi. Browsers only allow the live camera on https or on the laptop itself, so on a phone over Wi-Fi use **Take a photo of the barcode**, which works everywhere. Chrome's menu then offers **Add to Home screen**, so it opens like an app. When it's hosted with https (Render, Railway), the live camera works on phones too.
 
 ## Measured accuracy
 
@@ -286,6 +288,9 @@ Set `TEST_DATABASE_URL` to an empty test database to include the PostgreSQL inte
 | GET | `/users/{id}/alerts` | The user's alerts, with what-to-do text, unanswered first |
 | POST | `/users/{id}/alerts/{aid}/feedback` | `{"answer": "has_batch" \| "not_my_batch"}` |
 | POST | `/check/photo` | A photo of an ingredient label: OCR, then the label check |
+| GET | `/alternatives?barcode=…` | Similar products without the scanned product's flagged ingredients |
+| GET / POST | `/auth/config`, `/auth/google` | Google sign-in: settings, and exchanging Google's token for a session |
+| GET / POST | `/push/config`, `/users/{id}/push`, `/users/{id}/push/remove`, `/users/{id}/push/test` | Phone notifications |
 | POST | `/match` | High-confidence recalls for one product. `?include_medium=true` adds medium ones, for reviewers |
 | GET | `/purchases/{id}/matches` | Published matches for one purchase |
 | GET | `/review` | The review queue |
@@ -316,6 +321,9 @@ recallindia/
   review.py         confidence bands, review queue, review metrics
   alerts.py         alert messages and delivery (outbox, SMTP, console)
   pipeline.py       ingest purchases, full refresh
+  alternatives.py   similar products without flagged ingredients
+  auth.py           Google sign-in and signed sessions
+  push.py           phone notifications (Web Push)
   intake.py         shared purchase-intake helpers
   email_import.py   order emails from Takeout .mbox, .eml or the Gmail API
   receipts.py       receipt OCR and line parsing
@@ -335,4 +343,5 @@ tests/              pytest suite and fixtures (order emails, receipt)
 - **Tested here:** cleaning, validation, matching, banding, review metrics, alert text and delivery, order-email parsing, receipt parsing and OCR, global status, and the evaluation sets (48 tests). The review, alert and migration SQL was run against PostgreSQL 16, including upgrading a database made by the previous version.
 - **Needs a first real run:** the FastAPI endpoints and the SQLAlchemy calls around that SQL (run `pytest` with `TEST_DATABASE_URL` set); the Gmail API path, which needs your own OAuth client; and the order-email parser on real emails, since it was built on representative test emails.
 - **Data:** FoSCoS gives no manufacture or expiry dates and often no batch, so many matches rest on brand and product alone, and the alert tells the user to check the batch on the pack.
-- **Next:** suggested alternatives on the scan result, sign-in with Google, push notifications, hosting with https, CDSCO monthly PDF alerts (Phase 2), BIS notices, a fresh test set from real imports, and the "brand and batch agree" review rule.
+- **Needs your accounts to finish:** Google sign-in (an OAuth client ID), phone notifications (`pywebpush`, which couldn't be installed in the build environment, plus `vapid-keys`), and hosting (Render). The code and its unit tests are in place; see `DEPLOY.md`. Alternatives were tested against sample Open Food Facts data; the live search couldn't be reached from the build environment.
+- **Next:** CDSCO monthly PDF alerts (Phase 2), BIS notices, a scheduled scrape on the server, a fresh test set from real imports, and the "brand and batch agree" review rule.

@@ -1,5 +1,6 @@
 """Tests for the MVP features: review queue, alerts, intake, global status and the evaluation sets."""
 import shutil
+import time
 from datetime import date
 from pathlib import Path
 
@@ -274,3 +275,95 @@ def test_app_files_exist():
     app = Path(__file__).parent.parent / "recallindia" / "static" / "app"
     for name in ("index.html", "app.js", "app.css", "manifest.webmanifest", "sw.js", "icon-192.png", "icon-512.png"):
         assert (app / name).is_file(), name
+
+
+def test_alternatives_skip_flagged_unknown_and_recalled(gs):
+    from recallindia.alternatives import find_alternatives
+    from recallindia.checker import check_product
+    from recallindia.openfoodfacts import product_from
+    rb = gs.rulebook
+    scanned = {"barcode": "1", "product_name": "Cream biscuit", "brand": "A", "ingredients_text": "Wheat flour, Sugar, Colour (INS 124)",
+               "additive_codes": ["124"], "category": "7", "categories_tags": ["en:snacks", "en:biscuits", "en:cream-biscuits"]}
+    result = check_product(rb, barcode="1", fetch_product=lambda _: scanned)
+    pool = [
+        {"code": "2", "product_name": "Plain biscuit", "brands": "B", "ingredients_text": "Wheat flour, Sugar, Palm oil, Salt"},
+        {"code": "3", "product_name": "Red biscuit", "brands": "C", "ingredients_text": "Wheat flour, Ponceau 4R", "additives_tags": ["en:e124"]},
+        {"code": "4", "product_name": "Mystery biscuit", "brands": "D"},
+        {"code": "5", "product_name": "Bromate bread", "brands": "E", "ingredients_text": "Wheat flour, Potassium bromate"},
+        {"code": "6", "product_name": "Recalled biscuit", "brands": "Acme", "ingredients_text": "Wheat flour, Sugar"},
+        {"code": "1", "product_name": "Cream biscuit", "brands": "A", "ingredients_text": "Wheat flour"},
+    ]
+    searched = []
+    def search(tag):
+        searched.append(tag)
+        return [product_from(p) for p in pool]
+    def recalls(product_norm, brand_norm):
+        if "acme" in brand_norm or "recalled" in product_norm:
+            return [{"recall_id": "R1", "product_name": "Recalled biscuit", "brand": "Acme", "brand_norm": "acme",
+                     "product_norm": "recalled biscuit", "fbo_norm": "", "batch_no": None, "reason": "x"}]
+        return []
+    out = find_alternatives(rb, scanned, result, search, recall_lookup=recalls)
+    assert [a["barcode"] for a in out["items"]] == ["2"]
+    assert out["items"][0]["notes"] == ["Doesn't list Ponceau 4R (INS 124)", "No open FSSAI recall"]
+    assert searched[0] == "en:cream-biscuits"  # most specific category first
+
+
+def test_alternatives_only_when_something_is_flagged(gs):
+    from recallindia.alternatives import find_alternatives
+    from recallindia.checker import check_product
+    ok = {"barcode": "9", "product_name": "Atta", "ingredients_text": "Whole wheat flour", "categories_tags": ["en:flours"]}
+    res = check_product(gs.rulebook, barcode="9", fetch_product=lambda _: ok)
+    assert find_alternatives(gs.rulebook, ok, res, lambda t: [])["reason"] == "no_flags"
+
+
+# ---------- sign-in ----------
+
+def test_session_tokens_round_trip_and_reject_tampering():
+    from recallindia import auth
+    tok = auth.make_session("g123")
+    assert auth.read_session(tok) == "g123"
+    body, sig = tok.split(".")
+    forged = auth._b64(b'{"u":"g999","exp":9999999999}') + "." + sig
+    assert auth.read_session(forged) is None
+    assert auth.read_session(tok, now=time.time() + 86400 * 400) is None  # expired
+    assert auth.read_session("garbage") is None and auth.read_session(None) is None
+    assert auth.bearer("Bearer abc") == "abc" and auth.bearer("Basic abc") is None
+
+
+def test_google_claims_are_checked():
+    from recallindia import auth
+    good = {"aud": "cid", "iss": "https://accounts.google.com", "exp": str(int(time.time()) + 300),
+            "email_verified": "true", "sub": "42", "email": "a@b.com"}
+    assert auth.check_google_claims(good, client_id="cid")["sub"] == "42"
+    for bad in ({"aud": "other"}, {"iss": "evil.com"}, {"exp": "1"}, {"email_verified": "false"}, {"sub": ""}):
+        with pytest.raises(auth.AuthError):
+            auth.check_google_claims({**good, **bad}, client_id="cid")
+    assert auth.google_user_id(good) == "g42"
+
+
+# ---------- phone notifications ----------
+
+def test_vapid_keys_have_browser_format():
+    import base64
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from recallindia.push import generate_vapid_keys
+    public, private = generate_vapid_keys()
+    pub = base64.urlsafe_b64decode(public + "=" * (-len(public) % 4))
+    priv = base64.urlsafe_b64decode(private + "=" * (-len(private) % 4))
+    assert len(pub) == 65 and pub[0] == 4 and len(priv) == 32
+    ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), pub)  # a real point on P-256
+
+
+def test_notification_text_from_alert():
+    from recallindia.alerts import build_message
+    from recallindia.push import notification_for
+    subject, body = build_message(_alert_row())
+    n = notification_for({"id": 9, "subject": subject, "body": body})
+    assert n["title"] == "Recall: Ramdev - Compounded Asafoetida"
+    assert n["body"].startswith("Check the batch or lot number on your pack")
+    assert n["url"] == "/app/#/alerts" and n["tag"] == "alert-9"
+
+
+def test_push_is_a_no_op_without_keys():
+    from recallindia import push
+    assert push.send_to_user(None, "ritu", {"title": "x"}) == 0 or push.PUSH_ENABLED

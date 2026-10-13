@@ -7,7 +7,8 @@ const CATEGORIES = [
   ["7", "Bakery (bread, biscuits)"], ["12", "Spices, salt, sauces"], ["13.1", "Infant formula"], ["13.2", "Baby food"],
   ["14", "Beverages"], ["15", "Savoury snacks"],
 ];
-const state = { user: null, summary: null, lastResult: null, openAlert: null, productFilter: "all", scanMode: "barcode" };
+const GSI_URL = "https://accounts.google.com/gsi/client";
+const state = { user: null, token: null, auth: null, summary: null, lastResult: null, openAlert: null, productFilter: "all", scanMode: "barcode" };
 let stopCamera = () => {};
 
 // ---------- helpers ----------
@@ -36,6 +37,7 @@ function toast(msg, ms = 3500) {
 
 async function api(path, opts = {}) {
   const init = { ...opts, headers: { ...(opts.headers || {}) } };
+  if (state.token) init.headers.Authorization = `Bearer ${state.token}`;
   if (opts.json !== undefined) {
     init.body = JSON.stringify(opts.json);
     init.headers["Content-Type"] = "application/json";
@@ -43,6 +45,10 @@ async function api(path, opts = {}) {
   }
   const res = await fetch(path, init);
   const body = res.headers.get("content-type")?.includes("json") ? await res.json() : await res.text();
+  if (res.status === 401 && state.user && !path.startsWith("/auth/")) {
+    signOut();
+    toast("Please sign in again.");
+  }
   if (!res.ok) {
     const detail = typeof body === "object" && body ? body.detail : body;
     const err = new Error(typeof detail === "string" ? detail : `Request failed (${res.status})`);
@@ -98,6 +104,54 @@ async function refreshBadge() {
   } catch { /* badge is optional */ }
 }
 
+// ---------- notifications ----------
+const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+function b64ToBytes(b64) {
+  const s = atob(b64.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (b64.length % 4)) % 4));
+  return Uint8Array.from(s, (c) => c.charCodeAt(0));
+}
+async function pushState() {
+  if (!pushSupported()) return { available: false, why: "This browser doesn't support notifications. On iPhone, add RecallIndia to your Home Screen first." };
+  if (!window.isSecureContext) return { available: false, why: "Notifications need the app to be opened over https." };
+  const cfg = await api("/push/config").catch(() => ({ enabled: false }));
+  if (!cfg.enabled) return { available: false, why: "Notifications aren't set up on this server yet." };
+  const reg = await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.getSubscription();
+  return { available: true, on: !!sub && Notification.permission === "granted", denied: Notification.permission === "denied", key: cfg.public_key, reg, sub };
+}
+async function enablePush() {
+  const st = await pushState();
+  if (!st.available) return toast(st.why, 6000);
+  if ((await Notification.requestPermission()) !== "granted") return toast("Notifications are blocked. Allow them for this site in your browser settings.", 6000);
+  try {
+    const sub = st.sub || await st.reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(st.key) });
+    await api(userPath("/push"), { method: "POST", json: sub.toJSON() });
+    await api(userPath("/push/test"), { method: "POST" });
+    toast("Notifications are on. We sent you a test one.");
+    route();
+  } catch (e) { toast(e.message, 6000); }
+}
+async function disablePush() {
+  const st = await pushState();
+  if (st.sub) {
+    await api(userPath("/push/remove"), { method: "POST", json: st.sub.toJSON() }).catch(() => {});
+    await st.sub.unsubscribe().catch(() => {});
+  }
+  toast("Notifications are off on this device.");
+  route();
+}
+async function pushCard(el) {
+  const st = await pushState().catch(() => ({ available: false }));
+  if (!el.isConnected || !st.available || st.on || localStorage.getItem("ri_push_dismissed")) return;
+  el.innerHTML = `<div class="card pad row" style="align-items:flex-start">
+    <svg viewBox="0 0 24 24" aria-hidden="true" style="color:var(--accent)"><path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 004 0"/></svg>
+    <div style="flex:1" class="stack"><div><b class="small">Get a notification if something you bought is recalled</b>
+      <div class="tiny muted">${st.denied ? "Notifications are blocked for this site. Allow them in your browser settings." : "One tap. You can turn it off any time."}</div></div>
+      ${st.denied ? "" : '<div class="row"><button class="btn primary" id="push-on" style="min-height:40px;padding:0 14px;white-space:nowrap">Turn on</button><button class="btn ghost" id="push-later" style="min-height:40px;padding:0 14px;white-space:nowrap">Not now</button></div>'}</div></div>`;
+  el.querySelector("#push-on")?.addEventListener("click", enablePush);
+  el.querySelector("#push-later")?.addEventListener("click", () => { try { localStorage.setItem("ri_push_dismissed", "1"); } catch {} el.innerHTML = ""; });
+}
+
 // ---------- router ----------
 const routes = { welcome: viewWelcome, home: viewHome, scan: viewScan, result: viewResult, products: viewProducts, alerts: viewAlerts, lookup: viewLookup };
 
@@ -119,7 +173,33 @@ view.addEventListener("click", (e) => {
 });
 
 // ---------- welcome ----------
-function viewWelcome() {
+function saveLogin(user, token) {
+  state.user = { user_id: user.user_id, name: user.name || "" };
+  state.token = token || null;
+  try {
+    localStorage.setItem("ri_user", JSON.stringify(state.user));
+    if (token) localStorage.setItem("ri_token", token); else localStorage.removeItem("ri_token");
+  } catch { /* private mode: stays signed in for this tab only */ }
+  location.hash = "#/home";
+  route();
+  refreshBadge();
+}
+function signOut() {
+  state.user = null; state.token = null;
+  try { localStorage.removeItem("ri_user"); localStorage.removeItem("ri_token"); } catch { /* ignore */ }
+  window.google?.accounts?.id?.disableAutoSelect?.();
+  closeSheet();
+  location.hash = "#/welcome";
+  route();
+}
+async function authConfig() {
+  if (!state.auth) state.auth = await api("/auth/config").catch(() => ({ auth_enabled: false }));
+  return state.auth;
+}
+
+async function viewWelcome() {
+  const cfg = await authConfig();
+  if (cfg.auth_enabled) return viewGoogleWelcome(cfg);
   view.innerHTML = `
     <div class="brand" style="margin-top:24px"><span class="logo">${icon.shield}</span>RecallIndia</div>
     <div><div class="big">Know when something you bought is recalled</div>
@@ -144,23 +224,53 @@ function viewWelcome() {
         const id = `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "user"}-${Math.floor(1000 + Math.random() * 9000)}`;
         user = await api("/users", { method: "POST", json: { user_id: id, name, email: f.get("email").trim() || null } });
       }
-      state.user = { user_id: user.user_id, name: user.name || name };
-      localStorage.setItem("ri_user", JSON.stringify(state.user));
-      location.hash = "#/home";
-      route();
+      saveLogin({ user_id: user.user_id, name: user.name || name });
     } catch (err) {
       toast(err.status === 404 ? "No account with that code." : err.message);
     }
   });
 }
 
+function viewGoogleWelcome(cfg) {
+  view.innerHTML = `
+    <div class="brand" style="margin-top:24px"><span class="logo">${icon.shield}</span>RecallIndia</div>
+    <div><div class="big">Know when something you bought is recalled</div>
+    <p class="muted small">RecallIndia checks official FSSAI recall notices against the products you buy, and tells you if one matches.</p></div>
+    <div class="card pad stack" style="align-items:center"><div id="gbtn" style="min-height:44px"></div>
+      <div class="note" style="text-align:center">We use your Google name and email only to keep your products and alerts private to you.</div></div>`;
+  const render = () => {
+    window.google.accounts.id.initialize({
+      client_id: cfg.google_client_id,
+      callback: async ({ credential }) => {
+        try {
+          const out = await api("/auth/google", { method: "POST", json: { credential } });
+          saveLogin(out.user, out.token);
+        } catch (e) { toast(e.message, 6000); }
+      },
+    });
+    window.google.accounts.id.renderButton(view.querySelector("#gbtn"), { theme: "outline", size: "large", text: "continue_with", shape: "pill", width: 300 });
+  };
+  if (window.google?.accounts?.id) return render();
+  const sc = document.createElement("script");
+  sc.src = GSI_URL; sc.async = true; sc.onload = render;
+  sc.onerror = () => toast("Couldn't load Google sign-in. Check your internet connection.", 6000);
+  document.head.appendChild(sc);
+}
+
 function openAccount() {
   openSheet(`<h2>${esc(state.user.name || "Your account")}</h2>
-    <div class="card pad stack small"><div class="between"><span class="muted">Account code</span><b>${esc(state.user.user_id)}</b></div>
-    <div class="note">Use this code to open the same account on another device.</div></div>
+    ${state.token ? '<div class="card pad small">Signed in with Google. Sign in the same way on any device to see the same products.</div>' : `<div class="card pad stack small"><div class="between"><span class="muted">Account code</span><b>${esc(state.user.user_id)}</b></div>
+    <div class="note">Use this code to open the same account on another device.</div></div>`}
+    <button class="btn ghost block" id="push-toggle">Notifications…</button>
     <a class="btn ghost block" href="/admin/review">Review queue (admin)</a>
     <button class="btn ghost block" id="signout">Sign out on this device</button>`, (s) => {
-    s.querySelector("#signout").onclick = () => { localStorage.removeItem("ri_user"); state.user = null; closeSheet(); location.hash = "#/welcome"; route(); };
+    s.querySelector("#signout").onclick = signOut;
+    const pt = s.querySelector("#push-toggle");
+    pushState().then((st) => {
+      if (!st.available) { pt.textContent = "Notifications unavailable"; pt.disabled = true; pt.title = st.why; return; }
+      pt.textContent = st.on ? "Turn off notifications" : "Turn on notifications";
+      pt.onclick = () => { closeSheet(); st.on ? disablePush() : enablePush(); };
+    }).catch(() => { pt.hidden = true; });
   });
 }
 
@@ -188,6 +298,7 @@ async function viewHome() {
       ${header(`<div class="brand"><span class="logo">${icon.shield}</span>RecallIndia</div>`)}
       <div><div class="muted small">Hi ${esc(state.user.name || "")}</div><div class="big">Is anything you bought recalled?</div></div>
       ${statusCard}
+      <div id="push-card"></div>
       <div class="grid2">
         <div class="card pad stat"><div class="n">${s.watched}</div><div class="l">products watched</div></div>
         <div class="card pad stat"><div class="n">${s.recalls}</div><div class="l">FSSAI recalls checked${s.last_checked ? ` · ${esc(fmtDate(s.last_checked))}` : ""}</div></div>
@@ -201,6 +312,7 @@ async function viewHome() {
             <div class="s">${r.batch_no ? `Batch ${esc(r.batch_no)}` : "No batch listed"} · Recall ${esc(r.recall_id)}${r.recall_type ? ` · ${esc(r.recall_type)}` : ""}</div></div>
             <div class="tiny muted">${esc(fmtDate(r.recall_date))}</div></div>`).join("") || '<div class="empty">No recalls loaded yet.</div>'}</div>
       </div>`;
+    pushCard(view.querySelector("#push-card"));
   } catch (e) {
     view.innerHTML = header(`<div class="brand"><span class="logo">${icon.shield}</span>RecallIndia</div>`) + errorBox(e, true);
   }
@@ -390,8 +502,32 @@ function viewResult() {
       <div class="find between"><span class="small muted">${ok.length ? esc(ok.slice(0, 4).join(", ")) + (ok.length > 4 ? ` +${ok.length - 4} more` : "") : `${r.ingredients_parsed} ingredients read`}</span><span class="tiny" style="color:var(--accent);font-weight:700">No issues</span></div>
     </div>
     <button class="btn primary block" id="save">Save to My Products</button>
+    ${r.barcode && flagged.length ? `<div class="stack" id="alts"><div><h2 style="font-size:15px">Similar products that don't list ${esc(flagged[0].substance)}${flagged.length > 1 ? ` or ${flagged.length - 1} other` : ""}</h2>
+      <div class="tiny muted">Matched by category and listed ingredients. Not a safety rating.</div></div><div class="spinner" style="margin:12px auto"></div></div>` : ""}
     <p class="note">${esc(r.disclaimer || "")}</p>`;
   view.querySelector("#save").onclick = () => saveScanned(r);
+  if (r.barcode && flagged.length) loadAlternatives(r);
+}
+
+async function loadAlternatives(r) {
+  const box = view.querySelector("#alts");
+  const spot = box?.querySelector(".spinner");
+  if (!box) return;
+  try {
+    const out = await api(`/alternatives?barcode=${encodeURIComponent(r.barcode)}${r.category ? `&category=${encodeURIComponent(r.category)}` : ""}`);
+    if (!view.contains(box)) return;
+    if (!out.items.length) { spot.outerHTML = '<div class="card pad small muted">No similar products with ingredient details found yet.</div>'; return; }
+    spot.outerHTML = `<div class="grid2">${out.items.map((a) => `
+      <button class="card pad stack" data-alt="${esc(a.barcode)}" style="gap:6px;text-align:left;cursor:pointer;font:inherit">
+        ${a.image_url ? `<img src="${esc(a.image_url)}" alt="" loading="lazy" style="width:100%;height:84px;object-fit:contain;border-radius:10px;background:#fff">` : '<div style="height:84px;border-radius:10px;background:#EDEFE9"></div>'}
+        <div style="font-weight:700;font-size:13px;line-height:1.3">${esc(a.product_name)}</div>
+        ${a.brand ? `<div class="tiny muted">${esc(a.brand)}</div>` : ""}
+        ${a.notes.map((n) => `<div class="tiny" style="color:var(--accent);font-weight:600">${esc(n)}</div>`).join("")}
+      </button>`).join("")}</div>`;
+    box.querySelectorAll("[data-alt]").forEach((b) => (b.onclick = () => checkBarcode(b.dataset.alt)));
+  } catch {
+    if (spot && view.contains(box)) spot.outerHTML = '<div class="card pad small muted">Suggestions are unavailable right now.</div>';
+  }
 }
 
 function saveScanned(r) {
@@ -645,7 +781,10 @@ async function viewLookup(params) {
 }
 
 // ---------- start ----------
-try { state.user = JSON.parse(localStorage.getItem("ri_user") || "null"); } catch { state.user = null; }
+try {
+  state.user = JSON.parse(localStorage.getItem("ri_user") || "null");
+  state.token = localStorage.getItem("ri_token");
+} catch { state.user = null; }
 window.addEventListener("hashchange", route);
 route();
 if (state.user) refreshBadge();

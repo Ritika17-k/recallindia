@@ -34,12 +34,15 @@
 </header>
 <main id="list"><p class="empty">Loading…</p></main>
 <script>
+const authHeaders = () => { try { const t = localStorage.getItem("ri_token"); return t ? { Authorization: `Bearer ${t}` } : {}; } catch { return {}; } };
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const parts = r => ["brand","product","batch"].map(k => r[k+"_score"] == null ? null : `${k} ${Math.round(r[k+"_score"])}`).filter(Boolean).join(" · ");
 async function load() {
   const list = document.getElementById("list");
   try {
-    const rows = await (await fetch("/review?limit=200")).json();
+    const res = await fetch("/review?limit=200", { headers: authHeaders() });
+    if (res.status === 401 || res.status === 403) { list.innerHTML = '<p class="empty">Sign in to the app with an admin Google account first (ADMIN_EMAILS).</p>'; return; }
+    const rows = await res.json();
     if (!rows.length) { list.innerHTML = '<p class="empty">Nothing waiting for review.</p>'; return; }
     list.innerHTML = rows.map(r => `
       <section class="card" id="m${r.match_id}">
@@ -63,7 +66,7 @@ async function load() {
 async function decide(id, decision) {
   const card = document.getElementById("m" + id);
   const note = document.getElementById("n" + id).value || null;
-  const res = await fetch(`/review/${id}`, {method:"POST", headers:{"Content-Type":"application/json"},
+  const res = await fetch(`/review/${id}`, {method:"POST", headers:{"Content-Type":"application/json", ...authHeaders()},
                                             body: JSON.stringify({decision, note, reviewer: "admin page"})});
   if (res.ok) { card.classList.add("done"); card.querySelector(".actions").innerHTML = `<span class="meta">${decision === "approve" ? "Approved, alert sent" : "Rejected"}</span>`; }
   else { alert((await res.json()).detail || "Failed"); }

@@ -1,0 +1,16 @@
+.git
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.env
+credentials.json
+token.json
+data/raw
+data/clean
+data/discovery
+data/reports
+data/intake
+data/outbox
+tests

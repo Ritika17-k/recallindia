@@ -4,12 +4,12 @@ from datetime import date
 from pathlib import Path
 from typing import Literal, Optional
 import pandas as pd
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
-from . import __version__, alerts
+from . import __version__, alerts, auth, push
 from .clean import normalize_name
 from .config import AUTO_PUBLISH_SCORE, REVIEW_MIN_SCORE, SOURCES
 from . import openfoodfacts
@@ -44,10 +44,12 @@ def cached_product(barcode):
         if p:
             return {"barcode": p.barcode, "product_name": p.product_name, "brand": p.brand,
                     "ingredients_text": p.ingredients_text, "category": p.category, "image_url": p.image_url,
-                    "additive_codes": [c for c in (p.additive_codes or "").split(",") if c], "source": p.source}
+                    "additive_codes": [c for c in (p.additive_codes or "").split(",") if c],
+                    "categories_tags": [c for c in (p.categories_tags or "").split(",") if c], "source": p.source}
     product = openfoodfacts.fetch(barcode)
     if product:
-        row = {**product, "additive_codes": ",".join(product["additive_codes"]), "barcode": barcode}
+        row = {**product, "additive_codes": ",".join(product["additive_codes"]),
+               "categories_tags": ",".join(product.get("categories_tags") or []), "barcode": barcode}
         upsert(engine, Product, pd.DataFrame([row]), "barcode")
     return product
 
@@ -62,6 +64,31 @@ def recall_lookup(product_norm, brand_norm):
 def get_session():
     with SessionLocal() as s:
         yield s
+
+def require_owner(user_id: str, authorization: Optional[str] = Header(None)):
+    """With Google sign-in on, a user's data is only for that user's session."""
+    if not auth.AUTH_ENABLED:
+        return
+    uid = auth.read_session(auth.bearer(authorization))
+    if not uid:
+        raise HTTPException(401, "Please sign in again.")
+    if uid != user_id:
+        raise HTTPException(403, "That isn't your account.")
+
+def require_admin(authorization: Optional[str] = Header(None)):
+    """With Google sign-in on, review and admin actions need a signed-in user listed in ADMIN_EMAILS."""
+    if not auth.AUTH_ENABLED:
+        return
+    uid = auth.read_session(auth.bearer(authorization))
+    if not uid:
+        raise HTTPException(401, "Please sign in again.")
+    with SessionLocal() as s:
+        u = s.get(User, uid)
+    if not u or (u.email or "").lower() not in auth.ADMIN_EMAILS:
+        raise HTTPException(403, "Admins only.")
+
+OWNER = [Depends(require_owner)]
+ADMIN = [Depends(require_admin)]
 
 class RecallOut(BaseModel):
     recall_id: str
@@ -202,7 +229,7 @@ def match(req: MatchRequest, include_medium: bool = False, session: Session = De
                                 status=band(score), parts=parts, notes=notes))
     return sorted(out, key=lambda m: m.score, reverse=True)
 
-@app.get("/purchases/{purchase_id}/matches", response_model=list[MatchOut])
+@app.get("/purchases/{purchase_id}/matches", response_model=list[MatchOut], dependencies=ADMIN)
 def purchase_matches(purchase_id: str, session: Session = Depends(get_session)):
     """Published matches for one purchase. Matches waiting for review are not shown."""
     if not session.get(Purchase, purchase_id):
@@ -216,10 +243,69 @@ def purchase_matches(purchase_id: str, session: Session = Depends(get_session)):
 
 @app.post("/users")
 def create_user(user: UserIn):
+    if auth.AUTH_ENABLED:
+        raise HTTPException(403, "Use Sign in with Google.")
     upsert(engine, User, pd.DataFrame([user.model_dump()]), "user_id")
     return user
 
-@app.get("/users/{user_id}/matches", response_model=list[MatchOut])
+class PushIn(BaseModel):
+    endpoint: str
+    keys: dict
+
+@app.get("/push/config")
+def push_config():
+    return {"enabled": push.PUSH_ENABLED, "public_key": push.VAPID_PUBLIC_KEY or None}
+
+@app.post("/users/{user_id}/push", dependencies=OWNER)
+def push_subscribe(user_id: str, sub: PushIn):
+    """Turn on phone notifications for this browser."""
+    if not push.PUSH_ENABLED:
+        raise HTTPException(400, "Notifications aren't set up on this server (VAPID keys).")
+    if not sub.keys.get("p256dh") or not sub.keys.get("auth"):
+        raise HTTPException(422, "Subscription is missing its keys.")
+    from .db import save_push_subscription
+    save_push_subscription(engine, user_id, sub.endpoint, sub.keys["p256dh"], sub.keys["auth"])
+    return {"subscribed": True}
+
+@app.post("/users/{user_id}/push/remove", dependencies=OWNER)
+def push_unsubscribe(user_id: str, sub: PushIn):
+    from .db import delete_push_subscription
+    delete_push_subscription(engine, user_id, sub.endpoint)
+    return {"subscribed": False}
+
+@app.post("/users/{user_id}/push/test", dependencies=OWNER)
+def push_test(user_id: str):
+    """Send a test notification to the user's devices."""
+    n = push.send_to_user(engine, user_id, {"title": "RecallIndia notifications are on",
+                                            "body": "You'll get a notification like this if something you bought is recalled.",
+                                            "url": "/app/#/home", "tag": "test"})
+    return {"sent": n}
+
+class GoogleLogin(BaseModel):
+    credential: str
+
+@app.get("/auth/config")
+def auth_config():
+    return {"auth_enabled": auth.AUTH_ENABLED, "google_client_id": auth.GOOGLE_CLIENT_ID or None}
+
+@app.post("/auth/google")
+def google_login(body: GoogleLogin):
+    """Exchange the ID token from Google's sign-in button for a RecallIndia session."""
+    if not auth.AUTH_ENABLED:
+        raise HTTPException(400, "Google sign-in isn't set up on this server (GOOGLE_CLIENT_ID).")
+    try:
+        claims = auth.verify_google_token(body.credential)
+    except auth.AuthError as e:
+        raise HTTPException(401, str(e))
+    user_id = auth.google_user_id(claims)
+    upsert(engine, User, pd.DataFrame([{"user_id": user_id, "name": claims.get("name") or claims.get("email"),
+                                        "email": claims.get("email")}]), "user_id")
+    return {"token": auth.make_session(user_id),
+            "user": {"user_id": user_id, "name": claims.get("name"), "email": claims.get("email"),
+                     "picture": claims.get("picture")},
+            "is_admin": (claims.get("email") or "").lower() in auth.ADMIN_EMAILS}
+
+@app.get("/users/{user_id}/matches", response_model=list[MatchOut], dependencies=OWNER)
 def user_matches(user_id: str, session: Session = Depends(get_session)):
     rows = session.execute(select(Match, Recall).join(Recall, Match.recall_id == Recall.recall_id)
                            .join(Purchase, Match.purchase_id == Purchase.purchase_id)
@@ -227,19 +313,19 @@ def user_matches(user_id: str, session: Session = Depends(get_session)):
                            .order_by(Match.created_at.desc())).all()
     return [_match_out(m, r) for m, r in rows]
 
-@app.get("/users/{user_id}")
+@app.get("/users/{user_id}", dependencies=OWNER)
 def get_user(user_id: str, session: Session = Depends(get_session)):
     u = session.get(User, user_id)
     if not u:
         raise HTTPException(404, "User not found")
     return {"user_id": u.user_id, "name": u.name, "email": u.email, "alerts_enabled": u.alerts_enabled}
 
-@app.get("/users/{user_id}/summary")
+@app.get("/users/{user_id}/summary", dependencies=OWNER)
 def summary(user_id: str):
     """Home screen: products watched, which are affected, latest recalls."""
     return user_summary(engine, user_id)
 
-@app.get("/users/{user_id}/alerts")
+@app.get("/users/{user_id}/alerts", dependencies=OWNER)
 def list_user_alerts(user_id: str):
     """The user's recall alerts with everything an alert card shows. Unanswered ones first."""
     rows = user_alerts(engine, user_id)
@@ -249,19 +335,19 @@ def list_user_alerts(user_id: str):
         r["notice_url"] = alerts.NOTICE_URL.get(r["recall_source"] or "FSSAI")
     return rows
 
-@app.post("/users/{user_id}/alerts/{alert_id}/feedback")
+@app.post("/users/{user_id}/alerts/{alert_id}/feedback", dependencies=OWNER)
 def alert_feedback(user_id: str, alert_id: int, fb: Feedback):
     """The user's answer on an alert: they have the recalled batch, or not."""
     if not set_feedback(engine, user_id, alert_id, fb.answer):
         raise HTTPException(404, "Alert not found")
     return {"alert_id": alert_id, "feedback": fb.answer}
 
-@app.get("/users/{user_id}/purchases")
+@app.get("/users/{user_id}/purchases", dependencies=OWNER)
 def list_purchases(user_id: str):
     """My Products: every purchase with the published recalls it matches."""
     return user_purchases(engine, user_id)
 
-@app.patch("/users/{user_id}/purchases/{purchase_id}")
+@app.patch("/users/{user_id}/purchases/{purchase_id}", dependencies=OWNER)
 def edit_purchase(user_id: str, purchase_id: str, change: PurchaseUpdate):
     """Add a batch number, fix a name, or mark a product finished. Rematches when name, brand or batch change."""
     try:
@@ -276,20 +362,20 @@ def edit_purchase(user_id: str, purchase_id: str, change: PurchaseUpdate):
         result["alerts_sent"] = alerts.dispatch(engine)[0]
     return result
 
-@app.delete("/users/{user_id}/purchases/{purchase_id}")
+@app.delete("/users/{user_id}/purchases/{purchase_id}", dependencies=OWNER)
 def remove_purchase(user_id: str, purchase_id: str):
     if not delete_purchase(engine, user_id, purchase_id):
         raise HTTPException(404, "Purchase not found")
     return {"deleted": purchase_id}
 
-@app.post("/users/{user_id}/purchases")
+@app.post("/users/{user_id}/purchases", dependencies=OWNER)
 def add_purchases(user_id: str, items: list[PurchaseIn]):
     """Add purchases typed in or exported from elsewhere, then match and alert."""
     rows = [i.model_dump() for i in items]
     key = "|".join(f"{r['product_name']}{r['purchase_date']}" for r in rows)
     return _ingest(user_id, to_purchases(rows, user_id, "manual", key=key))
 
-@app.post("/users/{user_id}/receipts")
+@app.post("/users/{user_id}/receipts", dependencies=OWNER)
 async def upload_receipt(user_id: str, file: UploadFile = File(...)):
     """A receipt photo (OCR) or a .txt receipt."""
     from .receipts import import_receipt
@@ -307,7 +393,7 @@ async def upload_receipt(user_id: str, file: UploadFile = File(...)):
     summary["not_tracked"] = [i["product_name"] for i in parsed.get("not_tracked", [])]
     return summary
 
-@app.post("/users/{user_id}/order-emails")
+@app.post("/users/{user_id}/order-emails", dependencies=OWNER)
 async def upload_order_emails(user_id: str, file: UploadFile = File(...)):
     """An .eml order email or a Google Takeout .mbox of Gmail."""
     from .email_import import import_messages, iter_messages
@@ -325,12 +411,12 @@ async def upload_order_emails(user_id: str, file: UploadFile = File(...)):
 
 # ---- review queue ----
 
-@app.get("/review")
+@app.get("/review", dependencies=ADMIN)
 def list_review(limit: int = Query(50, le=200), offset: int = 0):
     """Medium-confidence matches waiting for a decision. These are never shown to users until approved."""
     return review_queue(engine, limit=limit, offset=offset)
 
-@app.post("/review/{match_id}")
+@app.post("/review/{match_id}", dependencies=ADMIN)
 def review_decision(match_id: int, d: Decision, send: bool = True):
     if not decide(engine, match_id, d.decision == "approve", reviewer=d.reviewer, note=d.note):
         raise HTTPException(409, "Match is not pending review (already decided or unknown ID)")
@@ -344,7 +430,7 @@ def review_decision(match_id: int, d: Decision, send: bool = True):
 def review_page():
     return (Path(__file__).parent / "static" / "review.html").read_text(encoding="utf-8")
 
-@app.post("/admin/alerts/send")
+@app.post("/admin/alerts/send", dependencies=ADMIN)
 def send_alerts():
     queued = alerts.queue_alerts(engine)
     sent, failed = alerts.dispatch(engine)
@@ -432,6 +518,29 @@ async def check_photo(file: UploadFile = File(...), category: Optional[str] = Fo
     result["ocr_text"] = text
     return result
 
+@app.get("/alternatives")
+def alternatives(barcode: str, category: Optional[str] = None, limit: int = Query(4, le=8)):
+    """Similar products (same Open Food Facts category, sold in India) that don't list the scanned product's
+    flagged ingredients and have no high-confidence recall match. Facts only, not a safety ranking."""
+    from .alternatives import find_alternatives
+    try:
+        product = cached_product(barcode)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    except openfoodfacts.ProductLookupError as e:
+        raise HTTPException(502, str(e))
+    if not product:
+        raise HTTPException(404, "Barcode not found on Open Food Facts")
+    check = check_product(rulebook(), barcode=barcode, category=category, fetch_product=lambda _: product)
+    try:
+        found = find_alternatives(rulebook(), product, check, openfoodfacts.search_category,
+                                  recall_lookup=recall_lookup, limit=limit)
+    except openfoodfacts.ProductLookupError as e:
+        raise HTTPException(502, str(e))
+    found["flagged"] = [f["substance"] for f in check["findings"] if f["severity"] > 0]
+    found["note"] = "Matched by category and listed ingredients. Not a safety rating."
+    return found
+
 @app.get("/categories")
 def categories(session: Session = Depends(get_session)):
     return [{"code": c.code, "name": c.name} for c in session.scalars(select(FoodCategory).order_by(FoodCategory.code))]
@@ -450,7 +559,7 @@ def substances(q: Optional[str] = None, limit: int = Query(20, le=100)):
             for i in ids]
 
 
-@app.post("/admin/reload-rules")
+@app.post("/admin/reload-rules", dependencies=ADMIN)
 def reload_rules():
     _rulebook.clear()
     rb = rulebook()

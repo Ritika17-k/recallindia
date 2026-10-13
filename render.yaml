@@ -1,0 +1,31 @@
+# Render blueprint: one web service (Docker) and one PostgreSQL database.
+# In Render: New > Blueprint > pick this GitHub repo. Fill in the values marked sync: false when asked.
+services:
+  - type: web
+    name: recallindia
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: recallindia-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
+      - key: ALERT_CHANNEL
+        value: console
+
+databases:
+  - name: recallindia-db
+    plan: free

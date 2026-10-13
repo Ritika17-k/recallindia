@@ -131,14 +131,20 @@ def queue_alerts(engine, channel=None):
 
 def dispatch(engine, channel=None):
     """Send every queued alert. Returns (sent, failed)."""
+    from . import push
     from .db import mark_alert, queued_alerts
     sent = failed = 0
     for alert in queued_alerts(engine):
+        pushed = push.send_to_user(engine, alert.get("user_id"), push.notification_for(alert))
         try:
             send(alert, channel or alert["channel"])
             mark_alert(engine, alert["id"], "sent")
             sent += 1
         except Exception as e:  # keep going; the error is stored on the alert
-            mark_alert(engine, alert["id"], "failed", str(e)[:500])
-            failed += 1
+            if pushed:  # the phone notification still reached the user
+                mark_alert(engine, alert["id"], "sent", f"pushed; {channel or alert['channel']} failed: {e}"[:500])
+                sent += 1
+            else:
+                mark_alert(engine, alert["id"], "failed", str(e)[:500])
+                failed += 1
     return sent, failed

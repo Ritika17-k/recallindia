@@ -1,11 +1,17 @@
 import json
 import re
+import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from . import __version__
 
 API = "https://world.openfoodfacts.org/api/v2/product/{barcode}.json"
+SEARCH_API = "https://world.openfoodfacts.org/api/v2/search"
 FIELDS = "code,product_name,brands,categories_tags,ingredients_text,ingredients_text_en,additives_tags,image_front_url"
+SEARCH_FIELDS = FIELDS + ",image_front_small_url,countries_tags"
+SEARCH_CACHE_SECONDS = 24 * 3600  # Open Food Facts allows 10 searches a minute per IP, so results are reused
+_search_cache = {}
 USER_AGENT = f"RecallIndia/{__version__} (github.com/Ritika17-k)"
 
 CATEGORY_MAP = [
@@ -48,15 +54,18 @@ def additive_codes(additives_tags):
 def parse_product(payload):
     if not payload or payload.get("status") != 1 or not payload.get("product"):
         return None
-    p = payload["product"]
+    return product_from(payload["product"], payload.get("code"))
+
+def product_from(p, code=None):
     return {
-        "barcode": str(p.get("code") or payload.get("code") or ""),
+        "barcode": str(p.get("code") or code or ""),
         "product_name": p.get("product_name") or None,
         "brand": (p.get("brands") or "").split(",")[0].strip() or None,
         "ingredients_text": p.get("ingredients_text_en") or p.get("ingredients_text") or None,
         "additive_codes": additive_codes(p.get("additives_tags")),
         "category": guess_category(p.get("categories_tags")),
-        "image_url": p.get("image_front_url"),
+        "image_url": p.get("image_front_small_url") or p.get("image_front_url"),
+        "categories_tags": list(p.get("categories_tags") or []),
         "source": "Open Food Facts",
     }
 
@@ -73,3 +82,24 @@ def fetch(barcode, timeout=15):
         raise ProductLookupError(f"Open Food Facts returned {e.code}") from e
     except urllib.error.URLError as e:
         raise ProductLookupError(f"Could not reach Open Food Facts: {e.reason}") from e
+
+
+def search_category(tag, country="en:india", page_size=50, timeout=20):
+    """Products in one Open Food Facts category sold in `country`, most scanned first. Cached for a day."""
+    key = (tag, country)
+    hit = _search_cache.get(key)
+    if hit and time.time() - hit[0] < SEARCH_CACHE_SECONDS:
+        return hit[1]
+    params = urllib.parse.urlencode({"categories_tags": tag, "countries_tags": country, "fields": SEARCH_FIELDS,
+                                     "page_size": page_size, "sort_by": "unique_scans_n"})
+    req = urllib.request.Request(f"{SEARCH_API}?{params}", headers={"User-Agent": USER_AGENT})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        raise ProductLookupError(f"Open Food Facts search returned {e.code}") from e
+    except urllib.error.URLError as e:
+        raise ProductLookupError(f"Could not reach Open Food Facts: {e.reason}") from e
+    products = [product_from(p) for p in (data.get("products") or []) if isinstance(p, dict)]
+    _search_cache[key] = (time.time(), products)
+    return products

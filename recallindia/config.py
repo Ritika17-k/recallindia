@@ -17,7 +17,17 @@ SAMPLES_DIR = DATA / "samples"
 REFERENCE_DIR = DATA / "reference"
 EVAL_DIR = DATA / "eval"
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql+psycopg2://postgres:postgres@localhost:5432/recallindia")
+def _normalize_db_url(url):
+    """Hosts like Render give postgres:// or postgresql:// URLs; SQLAlchemy needs the driver named."""
+    for prefix in ("postgres://", "postgresql://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg2://" + url[len(prefix):]
+    return url
+
+
+DATABASE_URL = _normalize_db_url(os.environ.get("DATABASE_URL",
+                                                "postgresql+psycopg2://postgres:postgres@localhost:5432/recallindia"))
+SEED_DIR = DATA / "seed"
 FOSCOS_URL = os.environ.get("FOSCOS_URL", "https://foscos.fssai.gov.in/")
 RECALL_URL = os.environ.get("RECALL_URL", "https://foscos.fssai.gov.in/food-recall")
 HEADLESS = os.environ.get("SCRAPER_HEADLESS", "1") != "0"

@@ -1,5 +1,5 @@
 // Caches the app's own files so it opens instantly and installs as an app. API calls always go to the server.
-const CACHE = "recallindia-v1";
+const CACHE = "recallindia-v2";
 const SHELL = ["/app/", "/app/app.css", "/app/app.js", "/app/manifest.webmanifest", "/app/icon-192.png", "/app/icon-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -22,4 +22,25 @@ self.addEventListener("fetch", (e) => {
       return res;
     }).catch(() => caches.match(e.request).then((r) => r || caches.match("/app/")))
   );
+});
+
+// Phone notifications for recall alerts.
+self.addEventListener("push", (e) => {
+  let data = {};
+  try { data = e.data ? e.data.json() : {}; } catch { data = { body: e.data && e.data.text() }; }
+  e.waitUntil(self.registration.showNotification(data.title || "RecallIndia", {
+    body: data.body || "Something you bought matches a recall notice.",
+    icon: "/app/icon-192.png", badge: "/app/icon-192.png", tag: data.tag, data: { url: data.url || "/app/#/alerts" },
+  }));
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || "/app/#/alerts";
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+    for (const c of list) {
+      if (c.url.includes("/app/")) { c.navigate(url); return c.focus(); }
+    }
+    return self.clients.openWindow(url);
+  }));
 });
