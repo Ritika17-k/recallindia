@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Literal, Optional
 import pandas as pd
 from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
@@ -137,6 +137,10 @@ def _ingest(user_id, purchases):
     summary["lines"] = purchases[["purchase_id", "product_name", "store", "purchase_date"]].astype(str).to_dict(
         "records") if len(purchases) else []
     return summary
+
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse("/docs")
 
 @app.get("/health")
 def health(session: Session = Depends(get_session)):
