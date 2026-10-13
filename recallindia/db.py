@@ -63,6 +63,9 @@ class Purchase(Base):
     product_norm = Column(Text, nullable=False, default="")
     brand_norm = Column(Text, nullable=False, default="")
     source = Column(String(16))
+    barcode = Column(String(14))
+    ingredients_text = Column(Text)
+    status = Column(String(16), nullable=False, server_default="active")
     created_at = Column(DateTime, server_default=func.now())
 
 
@@ -94,6 +97,8 @@ class Alert(Base):
     subject = Column(Text, nullable=False)
     body = Column(Text, nullable=False)
     error = Column(Text)
+    feedback = Column(String(16))
+    feedback_at = Column(DateTime)
     created_at = Column(DateTime, server_default=func.now())
     sent_at = Column(DateTime)
 
@@ -182,6 +187,11 @@ MIGRATIONS = [
     "ALTER TABLE matches ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP",
     "ALTER TABLE matches ADD COLUMN IF NOT EXISTS reviewed_by TEXT",
     "ALTER TABLE matches ADD COLUMN IF NOT EXISTS review_note TEXT",
+    "ALTER TABLE purchases ADD COLUMN IF NOT EXISTS barcode VARCHAR(14)",
+    "ALTER TABLE purchases ADD COLUMN IF NOT EXISTS ingredients_text TEXT",
+    "ALTER TABLE purchases ADD COLUMN IF NOT EXISTS status VARCHAR(16) NOT NULL DEFAULT 'active'",
+    "ALTER TABLE alerts ADD COLUMN IF NOT EXISTS feedback VARCHAR(16)",
+    "ALTER TABLE alerts ADD COLUMN IF NOT EXISTS feedback_at TIMESTAMP",
 ]
 
 INDEXES = [
@@ -483,6 +493,131 @@ def finish_run(engine, run_id, **counts):
     with engine.begin() as conn:
         conn.execute(text(f"UPDATE runs SET finished_at = now(), {', '.join(f'{c} = :{c}' for c in cols)} "
                           "WHERE id = :id"), {"id": run_id, **{c: counts.get(c) for c in cols}})
+
+
+# ---- queries for the app ----
+
+VISIBLE_SQL = "('auto_published', 'approved')"
+
+USER_PURCHASES_SQL = text(f"""
+    SELECT p.purchase_id, p.product_name, p.brand, p.batch_no, p.store, p.purchase_date, p.source, p.status,
+           p.barcode, p.created_at,
+           COALESCE(json_agg(json_build_object(
+               'recall_id', r.recall_id, 'brand', r.brand, 'product', r.product_name, 'batch', r.batch_no,
+               'score', m.score, 'match_status', m.status, 'alert_id', a.id, 'feedback', a.feedback)
+               ORDER BY m.score DESC) FILTER (WHERE m.id IS NOT NULL), '[]') AS recalls
+    FROM purchases p
+    LEFT JOIN matches m ON m.purchase_id = p.purchase_id AND m.status IN {VISIBLE_SQL}
+    LEFT JOIN recalls r ON r.recall_id = m.recall_id
+    LEFT JOIN alerts a ON a.match_id = m.id
+    WHERE p.user_id = :u
+    GROUP BY p.purchase_id
+    ORDER BY p.purchase_date DESC NULLS LAST, p.created_at DESC, p.purchase_id
+""")
+
+AFFECTED_SQL = text(f"""
+    SELECT DISTINCT p.purchase_id, p.product_name
+    FROM purchases p
+    JOIN matches m ON m.purchase_id = p.purchase_id AND m.status IN {VISIBLE_SQL}
+    LEFT JOIN alerts a ON a.match_id = m.id
+    WHERE p.user_id = :u AND p.status = 'active' AND COALESCE(a.feedback, '') <> 'not_my_batch'
+    ORDER BY p.product_name
+""")
+
+SUMMARY_SQL = text("""
+    SELECT (SELECT count(*) FROM purchases WHERE user_id = :u AND status = 'active') AS watched,
+           (SELECT count(*) FROM recalls) AS recalls,
+           (SELECT count(*) FROM alerts WHERE user_id = :u AND feedback IS NULL) AS open_alerts,
+           (SELECT max(finished_at) FROM runs) AS last_checked
+""")
+
+LATEST_RECALLS_SQL = text("""
+    SELECT recall_id, brand, product_name, batch_no, reason, recall_type, recall_date, source
+    FROM recalls ORDER BY recall_date DESC NULLS LAST, recall_id DESC LIMIT :n
+""")
+
+USER_ALERTS_SQL = text("""
+    SELECT a.id, a.match_id, a.status, a.feedback, a.created_at, a.sent_at, m.score, m.status AS match_status,
+           p.purchase_id, p.product_name AS purchase_product, p.brand AS purchase_brand, p.batch_no AS purchase_batch,
+           p.store AS purchase_store, p.purchase_date,
+           r.recall_id, r.product_name AS recall_product, r.brand AS recall_brand, r.batch_no AS recall_batch,
+           r.fbo_name AS recall_fbo, r.reason AS recall_reason, r.recall_type, r.recall_date,
+           r.status AS recall_status, r.source AS recall_source
+    FROM alerts a
+    JOIN matches m ON m.id = a.match_id
+    JOIN purchases p ON p.purchase_id = m.purchase_id
+    JOIN recalls r ON r.recall_id = m.recall_id
+    WHERE a.user_id = :u
+    ORDER BY (a.feedback IS NOT NULL), a.created_at DESC, a.id DESC
+""")
+
+FEEDBACK_SQL = text("""
+    UPDATE alerts SET feedback = :f, feedback_at = now()
+    WHERE id = :id AND user_id = :u
+    RETURNING id
+""")
+
+# Editing a purchase resets the matcher's own decisions for it (a new batch number can rule a recall out),
+# but keeps anything a reviewer decided.
+RESET_MATCHES_SQL = text("DELETE FROM matches WHERE purchase_id = :p AND reviewed_at IS NULL")
+DELETE_PURCHASE_SQL = text("DELETE FROM purchases WHERE purchase_id = :p AND user_id = :u RETURNING purchase_id")
+
+
+def _rows(engine, sql, **params):
+    with engine.connect() as conn:
+        return [dict(r) for r in conn.execute(sql, params).mappings()]
+
+
+def user_purchases(engine, user_id):
+    return _rows(engine, USER_PURCHASES_SQL, u=user_id)
+
+
+def user_summary(engine, user_id, latest=5):
+    s = _rows(engine, SUMMARY_SQL, u=user_id)[0]
+    s["affected"] = _rows(engine, AFFECTED_SQL, u=user_id)
+    s["latest_recalls"] = _rows(engine, LATEST_RECALLS_SQL, n=latest)
+    return s
+
+
+def user_alerts(engine, user_id):
+    return _rows(engine, USER_ALERTS_SQL, u=user_id)
+
+
+def set_feedback(engine, user_id, alert_id, feedback):
+    with engine.begin() as conn:
+        return conn.execute(FEEDBACK_SQL, {"f": feedback, "id": int(alert_id), "u": user_id}).first() is not None
+
+
+PURCHASE_EDITABLE = ("product_name", "brand", "batch_no", "store", "status")
+
+
+def update_purchase(engine, user_id, purchase_id, changes):
+    """Apply `changes` to one of the user's purchases. Returns True if the matcher should run again for it."""
+    from .clean import normalize_name
+    fields = {k: v for k, v in changes.items() if k in PURCHASE_EDITABLE}
+    if not fields:
+        return False
+    if "batch_no" in fields and fields["batch_no"]:
+        fields["batch_no"] = str(fields["batch_no"]).strip().upper()
+    if "product_name" in fields:
+        fields["product_norm"] = normalize_name(fields["product_name"])
+    if "brand" in fields:
+        fields["brand_norm"] = normalize_name(fields["brand"])
+    sets = ", ".join(f"{k} = :{k}" for k in fields)
+    with engine.begin() as conn:
+        found = conn.execute(text(f"UPDATE purchases SET {sets} WHERE purchase_id = :pid AND user_id = :uid "
+                                  "RETURNING purchase_id"), {**fields, "pid": purchase_id, "uid": user_id}).first()
+        if not found:
+            raise KeyError(purchase_id)
+        rematch = bool({"product_name", "brand", "batch_no"} & set(fields))
+        if rematch:
+            conn.execute(RESET_MATCHES_SQL, {"p": purchase_id})
+    return rematch
+
+
+def delete_purchase(engine, user_id, purchase_id):
+    with engine.begin() as conn:
+        return conn.execute(DELETE_PURCHASE_SQL, {"p": purchase_id, "u": user_id}).first() is not None
 
 
 def search_recalls(session: Session, q=None, category=None, limit=50, offset=0):

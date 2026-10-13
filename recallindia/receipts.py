@@ -9,7 +9,7 @@ from pathlib import Path
 
 from dateutil import parser as dateparser
 
-from .intake import is_meta, looks_like_product, to_purchases
+from .intake import is_meta, looks_like_product, split_trackable, to_purchases
 
 DATE_RES = [
     re.compile(r"\b(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})\b"),
@@ -112,6 +112,7 @@ def import_receipt(path_or_text, user_id, is_text=False, store=None):
         key = hashlib.sha1(p.read_bytes()).hexdigest()
         text = p.read_text(encoding="utf-8", errors="replace") if p.suffix.lower() == ".txt" else ocr_image(p)
     parsed = parse_receipt_text(text)
+    parsed["items"], parsed["not_tracked"] = split_trackable(parsed["items"])
     parsed["text"] = text
     purchases = to_purchases(parsed["items"], user_id, "receipt", store=store or parsed["store"],
                              purchase_date=parsed["purchase_date"], key=key)

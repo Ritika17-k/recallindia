@@ -17,7 +17,7 @@ from email.utils import parseaddr, parsedate_to_datetime
 from html.parser import HTMLParser
 from pathlib import Path
 
-from .intake import is_meta, looks_like_product, to_purchases
+from .intake import is_meta, looks_like_product, split_trackable, to_purchases
 
 RETAILERS = {
     "amazon.in": "Amazon", "amazon.com": "Amazon", "flipkart.com": "Flipkart", "bigbasket.com": "BigBasket",
@@ -179,11 +179,12 @@ def parse_order_email(msg, require_known_retailer=True):
         sent = parsedate_to_datetime(msg.get("Date")) if msg.get("Date") else None
     except (TypeError, ValueError):
         sent = None
-    items = find_items(_body_lines(msg))
-    if not items:
+    items, not_tracked = split_trackable(find_items(_body_lines(msg)))
+    if not items and not not_tracked:
         return None
     return {"retailer": retailer or parseaddr(msg.get("From", ""))[1], "order_date": sent.date() if sent else None,
             "message_id": str(msg.get("Message-ID", "")) or str(msg.get("Subject", "")), "items": items,
+            "not_tracked": not_tracked,
             "subject": str(msg.get("Subject", ""))}
 
 

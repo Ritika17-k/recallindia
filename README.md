@@ -51,7 +51,8 @@ Alongside this, a **Global Regulatory Status** lookup shows how an ingredient is
 | Gmail order-history import | `email_import` | `import-email takeout.mbox` or `import-email --gmail` |
 | Receipt OCR | `receipts` | `import-receipt photo.jpg` |
 | Global Regulatory Status | `global_status`, `data/reference/global_status.csv` | `global-status 127`, `global-status --divergent` |
-| Label and barcode check (extra) | `checker`, `rulebook`, `openfoodfacts` | `check --barcode …` or `check --text …` |
+| Label and barcode check | `checker`, `rulebook`, `openfoodfacts` | The app's Scan screen, or `check --barcode …` / `check --text …` |
+| Phone app (PWA) | `static/app/` | `serve`, then open http://127.0.0.1:8000 |
 
 ### Review queue
 
@@ -98,6 +99,29 @@ How this stays legally safe:
 - The lookup takes an ingredient (INS/E number or name) and nothing else. There is no brand or product input.
 - Each row states the regulator's own status with a link to it, and the output always carries the disclaimer.
 - Rows checked against an official regulator page are marked `verified=yes`: the EU titanium dioxide ban, FDA's Red No. 3 revocation, the BVO revocation, the cyclamate prohibition and FDA's food colour list. The others are marked `no` until checked.
+
+## The app
+
+RecallIndia has a phone-friendly web app (a PWA) served by the same FastAPI server. There's no separate install or Node.js.
+
+```powershell
+python -m recallindia serve
+```
+
+Then open **http://127.0.0.1:8000** (it goes to `/app/`). On first launch, enter your name to create an account.
+
+| Screen | What it does |
+|---|---|
+| Home | Whether anything you bought matches a recall, how many products are watched, the latest FSSAI recalls |
+| Scan | Barcode by live camera (or a photo of it, or typed digits), a photo of the ingredient label (OCR), or typed ingredients |
+| Scan result | The verdict, each flagged ingredient with its FSSAI rule and status abroad, recall matches, and "Save to My Products" |
+| My Products | Everything you bought, grouped by shop and date, with its source (Gmail order, receipt photo, barcode, added). Import order emails, scan a receipt, add a product, set a batch number (rechecks it), mark finished, delete |
+| Alerts | Each recall alert with what to do, and "I have this batch" / "Not my batch" |
+| Ingredient lookup | Global Regulatory Status for any ingredient or E-number |
+
+Loose goods and fresh produce on receipts or orders (onions, loose sugar, eggs) aren't tracked, because they have no brand or batch to match against a recall notice. Imports list them as "not tracked".
+
+**On your phone:** start the server with `python -m recallindia serve --host 0.0.0.0`, find your laptop's IP with `ipconfig` (IPv4 Address), and open `http://<that IP>:8000` on a phone on the same Wi-Fi. Browsers only allow the live camera on https or on the laptop itself, so on a phone over Wi-Fi use **Take a photo of the barcode**, which works everywhere. Chrome's menu then offers **Add to Home screen**, so it opens like an app. When it's hosted with https (Render, Railway), the live camera works on phones too.
 
 ## Measured accuracy
 
@@ -256,7 +280,12 @@ Set `TEST_DATABASE_URL` to an empty test database to include the PostgreSQL inte
 | POST | `/users/{id}/receipts` | Upload a receipt photo; OCR, match, alert |
 | POST | `/users/{id}/order-emails` | Upload an `.eml` or Takeout `.mbox`; import, match, alert |
 | GET | `/users/{id}/matches` | Published matches for the user (never pending ones) |
-| GET | `/users/{id}/alerts` | The user's alerts and their delivery status |
+| GET | `/users/{id}/summary` | Home screen: products watched, which are affected, latest recalls |
+| GET | `/users/{id}/purchases` | My Products, with the published recalls each matches |
+| PATCH / DELETE | `/users/{id}/purchases/{pid}` | Set a batch number or name (rechecks it), mark finished, or delete |
+| GET | `/users/{id}/alerts` | The user's alerts, with what-to-do text, unanswered first |
+| POST | `/users/{id}/alerts/{aid}/feedback` | `{"answer": "has_batch" \| "not_my_batch"}` |
+| POST | `/check/photo` | A photo of an ingredient label: OCR, then the label check |
 | POST | `/match` | High-confidence recalls for one product. `?include_medium=true` adds medium ones, for reviewers |
 | GET | `/purchases/{id}/matches` | Published matches for one purchase |
 | GET | `/review` | The review queue |
@@ -292,8 +321,8 @@ recallindia/
   receipts.py       receipt OCR and line parsing
   global_status.py  Global Regulatory Status
   ingredients.py, rulebook.py, checker.py, openfoodfacts.py   label check
-  db.py             SQLAlchemy models, migrations, trigram search, review and alert SQL
-  api.py            FastAPI app;  static/review.html  review page
+  db.py             SQLAlchemy models, migrations, trigram search, review, alert and app SQL
+  api.py            FastAPI app;  static/review.html  review page;  static/app/  the phone app (PWA)
   config.py         settings, thresholds, sources
 data/reference/     FSSAI categories, substances, rules, global status
 data/eval/          dev and holdout labelled receipt lines
@@ -306,4 +335,4 @@ tests/              pytest suite and fixtures (order emails, receipt)
 - **Tested here:** cleaning, validation, matching, banding, review metrics, alert text and delivery, order-email parsing, receipt parsing and OCR, global status, and the evaluation sets (48 tests). The review, alert and migration SQL was run against PostgreSQL 16, including upgrading a database made by the previous version.
 - **Needs a first real run:** the FastAPI endpoints and the SQLAlchemy calls around that SQL (run `pytest` with `TEST_DATABASE_URL` set); the Gmail API path, which needs your own OAuth client; and the order-email parser on real emails, since it was built on representative test emails.
 - **Data:** FoSCoS gives no manufacture or expiry dates and often no batch, so many matches rest on brand and product alone, and the alert tells the user to check the batch on the pack.
-- **Next:** CDSCO monthly PDF alerts (Phase 2), BIS notices, a fresh test set from real imports, the "brand and batch agree" review rule, and a React app.
+- **Next:** suggested alternatives on the scan result, sign-in with Google, push notifications, hosting with https, CDSCO monthly PDF alerts (Phase 2), BIS notices, a fresh test set from real imports, and the "brand and batch agree" review rule.

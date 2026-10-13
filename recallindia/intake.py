@@ -6,7 +6,37 @@ import pandas as pd
 
 from .clean import clean_purchases
 
-PURCHASE_COLUMNS = ["purchase_id", "user_id", "product_name", "brand", "batch_no", "store", "purchase_date", "source"]
+PURCHASE_COLUMNS = ["purchase_id", "user_id", "product_name", "brand", "batch_no", "store", "purchase_date", "source",
+                    "barcode", "ingredients_text"]
+
+# Loose goods and fresh produce have no brand or batch to match against a recall notice, so they are not tracked.
+LOOSE_RE = re.compile(r"\b(loose|unbranded|per\s?kg|/kg|kg\s?rate|open\s?sale)\b", re.I)
+PRODUCE_WORDS = {
+    "onion", "onions", "potato", "potatoes", "tomato", "tomatoes", "garlic", "ginger", "banana", "bananas", "apple",
+    "apples", "mango", "mangoes", "lemon", "lemons", "orange", "oranges", "grapes", "papaya", "pomegranate", "carrot",
+    "carrots", "cabbage", "cauliflower", "cucumber", "brinjal", "capsicum", "spinach", "palak", "methi", "bhindi",
+    "lady", "finger", "beans", "peas", "coriander", "dhania", "pudina", "mint", "curry", "leaves", "leaf", "green",
+    "chilli", "chillies", "mirchi", "coconut", "egg", "eggs", "watermelon", "guava", "pear", "sweet", "lime", "radish",
+    "beetroot", "pumpkin", "gourd", "lauki", "karela", "tinda", "aloo", "pyaz", "tamatar", "kela", "fruit", "fruits",
+    "vegetable", "vegetables", "veg", "fresh", "organic", "desi", "local", "big", "small", "medium", "red", "white",
+    "bunch", "pc", "pcs", "piece", "pieces", "nos", "dozen", "robusta", "elaichi", "kesar", "alphonso",
+}
+
+
+def is_trackable(name):
+    """False for loose goods and plain fresh produce ("ONION 1KG", "Loose sugar"); True for packaged products."""
+    name = str(name or "")
+    if LOOSE_RE.search(name):
+        return False
+    words = re.findall(r"[a-z]+", re.sub(r"\d+(\.\d+)?\s*(g|gm|gms|kg|ml|l|ltr|pcs?|nos)\b", " ", name.lower()))
+    return not words or any(w not in PRODUCE_WORDS for w in words)
+
+
+def split_trackable(items):
+    kept, skipped = [], []
+    for item in items:
+        (kept if is_trackable(item["product_name"] if isinstance(item, dict) else item) else skipped).append(item)
+    return kept, skipped
 
 # Lines that are totals, charges or page furniture rather than products. Checked as whole words.
 META_WORDS = [
@@ -64,6 +94,8 @@ def to_purchases(items, user_id, source, store=None, purchase_date=None, key="")
             "store": item.get("store") or store,
             "purchase_date": iso(item.get("purchase_date") or purchase_date),
             "source": source,
+            "barcode": item.get("barcode"),
+            "ingredients_text": item.get("ingredients_text"),
         })
     if not rows:
         return pd.DataFrame(columns=PURCHASE_COLUMNS + ["product_norm", "brand_norm"])

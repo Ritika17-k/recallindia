@@ -4,8 +4,8 @@ from datetime import date
 from pathlib import Path
 from typing import Literal, Optional
 import pandas as pd
-from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
@@ -14,8 +14,9 @@ from .clean import normalize_name
 from .config import AUTO_PUBLISH_SCORE, REVIEW_MIN_SCORE, SOURCES
 from . import openfoodfacts
 from .checker import ProductNotFound, check_product
-from .db import (Alert, FoodCategory, Match, Product, Purchase, Recall, Run, Substance, User, candidates, decide,
-                 get_engine, load_global_status, load_rulebook, review_queue, search_recalls, upsert)
+from .db import (Alert, FoodCategory, Match, Product, Purchase, Recall, Run, User, candidates, decide,
+                 delete_purchase, get_engine, load_global_status, load_rulebook, review_queue, search_recalls,
+                 set_feedback, update_purchase, upsert, user_alerts, user_purchases, user_summary)
 from .global_status import GlobalStatus
 from .intake import to_purchases
 from .matching import score_pair
@@ -115,6 +116,18 @@ class PurchaseIn(BaseModel):
     batch_no: Optional[str] = None
     store: Optional[str] = None
     purchase_date: Optional[date] = None
+    barcode: Optional[str] = None
+    ingredients_text: Optional[str] = None
+
+class PurchaseUpdate(BaseModel):
+    product_name: Optional[str] = None
+    brand: Optional[str] = None
+    batch_no: Optional[str] = None
+    store: Optional[str] = None
+    status: Optional[Literal["active", "finished"]] = None
+
+class Feedback(BaseModel):
+    answer: Literal["has_batch", "not_my_batch"]
 
 class Decision(BaseModel):
     decision: Literal["approve", "reject"]
@@ -138,9 +151,24 @@ def _ingest(user_id, purchases):
         "records") if len(purchases) else []
     return summary
 
+APP_DIR = Path(__file__).parent / "static" / "app"
+
 @app.get("/", include_in_schema=False)
 def root():
-    return RedirectResponse("/docs")
+    return RedirectResponse("/app/")
+
+@app.get("/app", include_in_schema=False)
+def app_redirect():
+    return RedirectResponse("/app/")
+
+@app.get("/app/{path:path}", include_in_schema=False)
+def app_files(path: str = ""):
+    """The RecallIndia web app (a PWA). Unknown paths return the app so links inside it work."""
+    target = (APP_DIR / (path or "index.html")).resolve()
+    if APP_DIR.resolve() not in target.parents or not target.is_file():
+        target = APP_DIR / "index.html"
+    headers = {"Service-Worker-Allowed": "/app/"} if target.name == "sw.js" else None
+    return FileResponse(target, headers=headers)
 
 @app.get("/health")
 def health(session: Session = Depends(get_session)):
@@ -199,11 +227,60 @@ def user_matches(user_id: str, session: Session = Depends(get_session)):
                            .order_by(Match.created_at.desc())).all()
     return [_match_out(m, r) for m, r in rows]
 
+@app.get("/users/{user_id}")
+def get_user(user_id: str, session: Session = Depends(get_session)):
+    u = session.get(User, user_id)
+    if not u:
+        raise HTTPException(404, "User not found")
+    return {"user_id": u.user_id, "name": u.name, "email": u.email, "alerts_enabled": u.alerts_enabled}
+
+@app.get("/users/{user_id}/summary")
+def summary(user_id: str):
+    """Home screen: products watched, which are affected, latest recalls."""
+    return user_summary(engine, user_id)
+
 @app.get("/users/{user_id}/alerts")
-def user_alerts(user_id: str, session: Session = Depends(get_session)):
-    rows = session.scalars(select(Alert).where(Alert.user_id == user_id).order_by(Alert.created_at.desc())).all()
-    return [{"id": a.id, "match_id": a.match_id, "status": a.status, "channel": a.channel, "subject": a.subject,
-             "body": a.body, "created_at": a.created_at, "sent_at": a.sent_at} for a in rows]
+def list_user_alerts(user_id: str):
+    """The user's recall alerts with everything an alert card shows. Unanswered ones first."""
+    rows = user_alerts(engine, user_id)
+    for r in rows:
+        r["reason_text"] = alerts.reason_text(r["recall_reason"])
+        r["batch_advice"] = alerts.batch_advice(r["purchase_batch"], r["recall_batch"])
+        r["notice_url"] = alerts.NOTICE_URL.get(r["recall_source"] or "FSSAI")
+    return rows
+
+@app.post("/users/{user_id}/alerts/{alert_id}/feedback")
+def alert_feedback(user_id: str, alert_id: int, fb: Feedback):
+    """The user's answer on an alert: they have the recalled batch, or not."""
+    if not set_feedback(engine, user_id, alert_id, fb.answer):
+        raise HTTPException(404, "Alert not found")
+    return {"alert_id": alert_id, "feedback": fb.answer}
+
+@app.get("/users/{user_id}/purchases")
+def list_purchases(user_id: str):
+    """My Products: every purchase with the published recalls it matches."""
+    return user_purchases(engine, user_id)
+
+@app.patch("/users/{user_id}/purchases/{purchase_id}")
+def edit_purchase(user_id: str, purchase_id: str, change: PurchaseUpdate):
+    """Add a batch number, fix a name, or mark a product finished. Rematches when name, brand or batch change."""
+    try:
+        rematch = update_purchase(engine, user_id, purchase_id, change.model_dump(exclude_none=True))
+    except KeyError:
+        raise HTTPException(404, "Purchase not found")
+    result = {"purchase_id": purchase_id, "rematched": rematch}
+    if rematch:
+        from .db import match_from_db, save_matches
+        save_matches(engine, match_from_db(engine, purchase_ids=[purchase_id]))
+        result["alerts_queued"] = alerts.queue_alerts(engine)
+        result["alerts_sent"] = alerts.dispatch(engine)[0]
+    return result
+
+@app.delete("/users/{user_id}/purchases/{purchase_id}")
+def remove_purchase(user_id: str, purchase_id: str):
+    if not delete_purchase(engine, user_id, purchase_id):
+        raise HTTPException(404, "Purchase not found")
+    return {"deleted": purchase_id}
 
 @app.post("/users/{user_id}/purchases")
 def add_purchases(user_id: str, items: list[PurchaseIn]):
@@ -227,6 +304,7 @@ async def upload_receipt(user_id: str, file: UploadFile = File(...)):
         Path(tmp.name).unlink(missing_ok=True)
     summary = _ingest(user_id, purchases)
     summary["receipt"] = {"store": parsed["store"], "purchase_date": parsed["purchase_date"]}
+    summary["not_tracked"] = [i["product_name"] for i in parsed.get("not_tracked", [])]
     return summary
 
 @app.post("/users/{user_id}/order-emails")
@@ -242,6 +320,7 @@ async def upload_order_emails(user_id: str, file: UploadFile = File(...)):
         Path(tmp.name).unlink(missing_ok=True)
     summary = _ingest(user_id, purchases)
     summary["order_emails"] = len(orders)
+    summary["not_tracked"] = [i["product_name"] for o in orders for i in o.get("not_tracked", [])]
     return summary
 
 # ---- review queue ----
@@ -323,6 +402,35 @@ def check(req: CheckRequest):
         raise HTTPException(404, str(e))
     except openfoodfacts.ProductLookupError as e:
         raise HTTPException(502, str(e))
+
+@app.post("/check/photo")
+async def check_photo(file: UploadFile = File(...), category: Optional[str] = Form(None),
+                      product_name: Optional[str] = Form(None), brand: Optional[str] = Form(None)):
+    """A photo of the ingredient list on a pack: OCR, then the same check as /check."""
+    from .checker import label_ingredients
+    from .receipts import ocr_image
+    suffix = Path(file.filename or "label.jpg").suffix or ".jpg"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(await file.read())
+    try:
+        text = ocr_image(tmp.name)
+    except RuntimeError as e:
+        raise HTTPException(501, str(e))
+    finally:
+        Path(tmp.name).unlink(missing_ok=True)
+    ingredients = label_ingredients(text)
+    if len(ingredients) < 5:
+        raise HTTPException(422, "Couldn't read an ingredient list in that photo. Try a closer, sharper photo of "
+                                 "the ingredients, or type them.")
+    try:
+        result = check_product(rulebook(), ingredients_text=ingredients, category=category or None,
+                               product_name=product_name, brand=brand, recall_lookup=recall_lookup,
+                               global_status=global_status())
+    except (ValueError, ProductNotFound) as e:
+        raise HTTPException(422, str(e))
+    result["product"]["source"] = "label photo"
+    result["ocr_text"] = text
+    return result
 
 @app.get("/categories")
 def categories(session: Session = Depends(get_session)):

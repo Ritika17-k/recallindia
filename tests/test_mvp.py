@@ -241,3 +241,36 @@ def test_pipeline_against_postgres():
     assert summary["purchases"] == 1
     for row in review_queue(engine):
         assert decide(engine, row["match_id"], approve=False)
+
+
+# ---------- app support ----------
+
+def test_loose_items_are_not_tracked():
+    from recallindia.intake import is_trackable, split_trackable
+    assert not is_trackable("ONION 1KG") and not is_trackable("Loose Sugar") and not is_trackable("Green Chilli 100g")
+    assert is_trackable("Tomato Ketchup 500g") and is_trackable("Ginger Garlic Paste 200g")
+    assert is_trackable("Amul Taaza Toned Fresh Milk (500 ml)") and is_trackable("VPR Gold Coconut Oil 1 L")
+    kept, skipped = split_trackable([{"product_name": "Eggs 12 pcs"}, {"product_name": "Ramdev Hing 50 g"}])
+    assert [k["product_name"] for k in kept] == ["Ramdev Hing 50 g"] and len(skipped) == 1
+
+
+def test_receipt_reports_untracked_lines():
+    from recallindia.receipts import import_receipt
+    text = ("FRESH MART\n12-10-2026\nItem Qty Amount\nONION 1KG 1 40.00\nRAMDEV HING 50G 1 60.00\nTotal 100.00")
+    purchases, parsed = import_receipt(text, "ritu", is_text=True)
+    assert list(purchases["product_name"]) == ["RAMDEV HING 50G"]
+    assert [i["product_name"] for i in parsed["not_tracked"]] == ["ONION 1KG"]
+
+
+def test_label_ingredients_from_ocr_text():
+    from recallindia.checker import label_ingredients
+    text = ("NUTRITION INFO per 100 g\nIngredients: Wheat flour (Atta), Sugar, Palm oil,\nColours (INS 124, 127), Salt.\n"
+            "Allergen: Contains wheat. Best before 6 months")
+    assert label_ingredients(text) == "Wheat flour (Atta), Sugar, Palm oil, Colours (INS 124, 127), Salt"
+    assert label_ingredients("lngredients - Sugar, Cocoa") == "Sugar, Cocoa"
+
+
+def test_app_files_exist():
+    app = Path(__file__).parent.parent / "recallindia" / "static" / "app"
+    for name in ("index.html", "app.js", "app.css", "manifest.webmanifest", "sw.js", "icon-192.png", "icon-512.png"):
+        assert (app / name).is_file(), name

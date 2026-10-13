@@ -1,3 +1,4 @@
+import re
 from .clean import normalize_name
 from .config import AUTO_PUBLISH_SCORE, MATCH_THRESHOLD
 from .matching import score_pair
@@ -9,6 +10,22 @@ RANK = {"no issues found": 0, "check": 1, "caution": 2, "avoid": 3}
 
 class ProductNotFound(Exception):
     pass
+
+
+LABEL_START_RE = re.compile(r"\b[il1|]ngred[il1]ents?\b\s*[:;.\-]?", re.I)
+LABEL_END_RE = re.compile(r"\b(nutrition(al)?|allergen|allergy|contains\s*:|may\s+contain|best\s+before|use\s+by|"
+                          r"storage|store\s+in|net\s+(wt|weight|qty|quantity)|mrp|mfd|mfg|manufactured|packed|"
+                          r"fssai|lic\.?\s*no|customer\s+care|batch|energy\s*\(|per\s+100)", re.I)
+
+
+def label_ingredients(text):
+    """The ingredient list from OCR text of a pack label: from "Ingredients:" to the next section."""
+    text = re.sub(r"[ \t]+", " ", str(text or ""))
+    start = LABEL_START_RE.search(text)
+    body = text[start.end():] if start else text
+    end = LABEL_END_RE.search(body)
+    body = body[:end.start()] if end else body
+    return re.sub(r"\s*\n\s*", " ", body).strip(" .:;-")
 
 def find_recalls(recall_lookup, product_name, brand, threshold=MATCH_THRESHOLD):
     if not product_name or recall_lookup is None:
