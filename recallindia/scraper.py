@@ -3,9 +3,7 @@ import re
 import time
 from datetime import datetime
 from pathlib import Path
-
 import pandas as pd
-
 from .clean import canonical_header
 from .config import DISCOVERY_DIR, FOSCOS_URL, HEADLESS, MAX_PAGES, RAW_DIR, RECALL_URL
 
@@ -19,10 +17,8 @@ NEXT_SELECTORS = [
     "a:has-text('›')", "a:has-text('»')",
 ]
 
-
 def _stamp():
     return datetime.now().strftime("%Y%m%d_%H%M%S")
-
 
 def _open_recall_section(page):
     for pattern in RECALL_LINK_PATTERNS:
@@ -35,7 +31,6 @@ def _open_recall_section(page):
         except Exception:
             continue
     return False
-
 
 class JsonCapture:
     def __init__(self):
@@ -56,7 +51,6 @@ class JsonCapture:
         except Exception:
             pass
 
-
 def _record_lists(obj, path=""):
     if isinstance(obj, list) and obj and all(isinstance(x, dict) for x in obj):
         yield path, obj
@@ -64,12 +58,10 @@ def _record_lists(obj, path=""):
         for k, v in obj.items():
             yield from _record_lists(v, f"{path}.{k}" if path else k)
 
-
 def _looks_like_recalls(records):
     keys = set().union(*(r.keys() for r in records[:5]))
     mapped = {canonical_header(k) for k in keys} - {None}
     return len(mapped) >= 3 and "product_name" in mapped
-
 
 def records_from_json(payloads):
     rows = []
@@ -78,7 +70,6 @@ def records_from_json(payloads):
             if _looks_like_recalls(records):
                 rows.extend(records)
     return rows
-
 
 def records_from_tables(page):
     rows = []
@@ -95,7 +86,6 @@ def records_from_tables(page):
             if len(cells) == len(headers):
                 rows.append(dict(zip(headers, cells)))
     return rows
-
 
 def _click_next(page):
     for sel in NEXT_SELECTORS:
@@ -114,7 +104,6 @@ def _click_next(page):
             continue
     return False
 
-
 def _wait_for_rows(page, timeout=20000):
     try:
         page.wait_for_selector("table tbody tr td", timeout=timeout)
@@ -122,7 +111,6 @@ def _wait_for_rows(page, timeout=20000):
         return True
     except Exception:
         return False
-
 
 def describe_tables(page):
     out = []
@@ -132,7 +120,6 @@ def describe_tables(page):
         out.append({"headers": headers, "mapped": {h: canonical_header(h) for h in headers}, "rows": len(rows),
                     "first_rows": [[c.inner_text().strip()[:80] for c in r.locator("td").all()] for r in rows[:3]]})
     return out
-
 
 def describe_controls(page):
     js = """() => ({
@@ -145,7 +132,6 @@ def describe_controls(page):
     })"""
     return page.evaluate(js)
 
-
 def _launch():
     from playwright.sync_api import sync_playwright
     pw = sync_playwright().start()
@@ -155,7 +141,6 @@ def _launch():
     page = context.new_page()
     return pw, browser, page
 
-
 def _find_header_row(frame):
     for i in range(min(15, len(frame))):
         values = [str(v) for v in frame.iloc[i].tolist()]
@@ -164,7 +149,6 @@ def _find_header_row(frame):
             body.columns = values
             return body.dropna(how="all")
     return None
-
 
 def read_export(path):
     path = Path(path)
@@ -191,7 +175,6 @@ def read_export(path):
             return found.reset_index(drop=True)
     return None
 
-
 def export_all(page, out_dir):
     button = page.get_by_text(EXPORT_PATTERN).first
     try:
@@ -206,13 +189,11 @@ def export_all(page, out_dir):
     except Exception:
         return None, None
 
-
 def _first_row_text(page):
     try:
         return page.locator("table tbody tr").first.inner_text(timeout=2000)
     except Exception:
         return None
-
 
 def discover(url=None, out_dir=None):
     name = re.sub(r"\W+", "_", re.sub(r"^https?://", "", url or FOSCOS_URL)).strip("_")[:40]
@@ -249,7 +230,6 @@ def discover(url=None, out_dir=None):
         browser.close()
         pw.stop()
     return out, summary
-
 
 def scrape(url=None, max_pages=None, out_dir=None):
     max_pages = max_pages or MAX_PAGES
@@ -290,7 +270,6 @@ def scrape(url=None, max_pages=None, out_dir=None):
     path = out / f"recalls_raw_{_stamp()}.csv"
     df.to_csv(path, index=False, encoding="utf-8")
     return path, {"pages": pages, "rows": len(df), "source": source}
-
 
 def latest_raw(directory=None):
     files = sorted(Path(directory or RAW_DIR).glob("recalls_raw_*.csv"))

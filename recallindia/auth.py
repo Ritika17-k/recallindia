@@ -1,10 +1,3 @@
-"""Sign-in with Google and signed session tokens.
-
-Off by default, so the app works locally with name-only accounts. Setting GOOGLE_CLIENT_ID turns it on:
-- the app shows a "Sign in with Google" button (Google Identity Services);
-- the server checks Google's ID token, creates or updates the user, and returns its own signed session token;
-- every /users/{id}/... request must carry a session for that same user, and admin pages need an ADMIN_EMAILS user.
-"""
 import base64
 import hashlib
 import hmac

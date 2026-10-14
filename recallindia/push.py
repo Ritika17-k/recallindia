@@ -12,10 +12,8 @@ VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
 VAPID_SUBJECT = os.environ.get("VAPID_SUBJECT", "mailto:alerts@recallindia.local").strip()
 PUSH_ENABLED = bool(VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY)
 
-
 def _b64url(data):
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
-
 
 def generate_vapid_keys():
     """A new P-256 key pair: (public key for the browser, raw private key for the server), both base64url."""
@@ -26,7 +24,6 @@ def generate_vapid_keys():
     public_raw = key.public_key().public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
     return _b64url(public_raw), _b64url(private_raw)
 
-
 def notification_for(alert):
     """The short notification for one alert row from db.queued_alerts()."""
     subject = alert.get("subject") or "Recall alert"
@@ -34,7 +31,6 @@ def notification_for(alert):
     first = next((line[2:] for line in (alert.get("body") or "").splitlines() if line.startswith("- ")), "")
     return {"title": title[:80], "body": (first or "Something you bought matches a recall notice.")[:160],
             "url": "/app/#/alerts", "tag": f"alert-{alert.get('id')}"}
-
 
 def send_to_user(engine, user_id, payload):
     """Push `payload` to every device the user turned notifications on for. Returns how many succeeded."""

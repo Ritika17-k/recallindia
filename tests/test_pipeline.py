@@ -1,17 +1,13 @@
 from datetime import date
-
 import pandas as pd
-
 from recallindia.clean import canonical_header, clean_purchases, clean_recalls, normalize_name, parse_date
 from recallindia.config import SAMPLES_DIR
 from recallindia.matching import evaluate, match_all, score_labeled_pairs, score_pair
 from recallindia.quality import profile, validate
 from recallindia.scraper import records_from_json
 
-
 def _read(name):
     return pd.read_csv(SAMPLES_DIR / name, dtype=str, keep_default_na=False)
-
 
 def _raw(**overrides):
     row = {"Recall No.": "R-1", "Product Name": "Peanut Chikki 200g", "Brand Name": "Acme", "Batch No.": "b12",
@@ -20,14 +16,12 @@ def _raw(**overrides):
     row.update(overrides)
     return pd.DataFrame([row])
 
-
 def test_headers_map_to_canonical_columns():
     assert canonical_header("Recall No.") == "recall_id"
     assert canonical_header("Name of FBO") == "fbo_name"
     assert canonical_header("Reason for Recall") == "reason"
     assert canonical_header("Mfg. Date") == "manufacture_date"
     assert canonical_header("Something else") is None
-
 
 def test_dates_parse_day_first_and_iso():
     assert parse_date("03/04/2025") == date(2025, 4, 3)
@@ -36,12 +30,10 @@ def test_dates_parse_day_first_and_iso():
     assert parse_date("31/02/2025") is None
     assert parse_date("N/A") is None
 
-
 def test_normalize_name_strips_units_and_case():
     assert normalize_name("Roasted Peanut CHIKKI 200g") == "roasted peanut chikki"
     assert normalize_name("Mango Drink 1.2L") == "mango drink"
     assert normalize_name(None) == ""
-
 
 def test_clean_recalls_standardizes_values():
     df, report = clean_recalls(_raw(**{"Status": "ONGOING", "Batch No.": " b12 ", "Brand Name": "n/a"}))
@@ -53,7 +45,6 @@ def test_clean_recalls_standardizes_values():
     assert row["recall_date"] == date(2025, 2, 10)
     assert report["unmapped_columns"] == []
 
-
 def test_clean_recalls_removes_duplicate_ids_keeping_latest():
     raw = pd.concat([_raw(**{"Status": "Ongoing"}), _raw(**{"Recall No.": " r-1", "Status": "Completed",
                                                             "Date of Recall": "20/02/2025"})])
@@ -61,7 +52,6 @@ def test_clean_recalls_removes_duplicate_ids_keeping_latest():
     assert len(df) == 1
     assert report["duplicates_removed"] == 1
     assert df.iloc[0]["status"] == "Completed"
-
 
 def test_sample_data_cleans_and_reports_issues():
     df, report = clean_recalls(_read("sample_recalls.csv"))
@@ -74,7 +64,6 @@ def test_sample_data_cleans_and_reports_issues():
     assert "license_no is not 14 digits" in rules
     assert profile(df)["rows"] == len(df)
 
-
 def test_validate_flags_bad_rows():
     df, _ = clean_recalls(_raw(**{"Date of Recall": "01/01/2030", "Expiry Date": "01/12/2024"}))
     val = validate(df, today=date(2026, 1, 1))
@@ -82,7 +71,6 @@ def test_validate_flags_bad_rows():
     assert not val["passed"]
     assert "recall_date must not be in the future" in errors
     assert "expiry_date must be after manufacture_date" in errors
-
 
 def test_score_pair_rules():
     recall = {"product_norm": "roasted peanut chikki", "brand_norm": "acme", "batch_no": "B12",
@@ -96,7 +84,6 @@ def test_score_pair_rules():
     no_batch = score_pair(recall, {**good, "batch_no": None})
     assert no_batch[0] == 100.0 and "batch" not in no_batch[1]
 
-
 def test_matching_on_sample_data():
     recalls, _ = clean_recalls(_read("sample_recalls.csv"))
     purchases = clean_purchases(_read("sample_purchases.csv"))
@@ -107,7 +94,6 @@ def test_matching_on_sample_data():
     assert len(results) == 10
     assert best["f1"] >= 0.9
 
-
 def test_evaluate_counts():
     labels = pd.DataFrame({"purchase_id": ["a", "b", "c"], "recall_id": ["x", "x", "x"], "is_match": ["1", "0", "1"]})
     scores = pd.DataFrame({"purchase_id": ["a", "b", "c"], "recall_id": ["x", "x", "x"], "score": [90, 80, 40]})
@@ -115,7 +101,6 @@ def test_evaluate_counts():
     row = results.iloc[0]
     assert (row["tp"], row["fp"], row["fn"]) == (1, 1, 1)
     assert row["precision"] == 0.5 and row["recall"] == 0.5
-
 
 def test_records_from_json_finds_nested_recall_lists():
     payloads = [
@@ -125,7 +110,6 @@ def test_records_from_json_finds_nested_recall_lists():
     ]
     rows = records_from_json(payloads)
     assert len(rows) == 1 and rows[0]["productName"] == "Tea"
-
 
 def test_foscos_headers_and_reason_split():
     raw = pd.DataFrame([{"Sr.No": "1", "Recall Id": "266", "FBO Name": "Example Foods", "Brand Name": "NIL",
@@ -142,7 +126,6 @@ def test_foscos_headers_and_reason_split():
     assert row["brand"] is None and row["batch_no"] == "556/26"
     assert row["license_type"] == "Central License" and row["recall_class"] == "Initiated by Authority"
 
-
 def test_reason_tags_type_and_redaction():
     from recallindia.clean import infer_type, is_placeholder_reason, redact, tag_hazards
     assert tag_hazards("Unsafe - PRESENCE OF CHLORPYRIFOS") == "pesticide residue"
@@ -155,15 +138,12 @@ def test_reason_tags_type_and_redaction():
     assert redact("Mob. 9876543210 e-mail- someone@example.com") == "Mob. [phone removed] e-mail- [email removed]"
     assert redact("Licence 12722025000499") == "Licence 12722025000499"
 
-
 def _recall(brand, product, fbo, batch=None):
     return {"brand_norm": normalize_name(brand), "product_norm": normalize_name(product),
             "fbo_norm": normalize_name(fbo), "batch_no": batch}
 
-
 def _purchase(product, brand="", batch=None):
     return {"product_norm": normalize_name(product), "brand_norm": normalize_name(brand), "batch_no": batch}
-
 
 def test_foscos_style_matching():
     eastern = _recall("Eastern - CHILLI POWDER", "Chillies and Capsicum (Lal Mirchi)", "FAMILY SUPERMARKET", "AC25L10A1")

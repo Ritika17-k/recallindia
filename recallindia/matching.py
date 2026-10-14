@@ -34,10 +34,8 @@ PLACEHOLDER_BATCH = {"", "NIL", "NA", "NO", "NONE", "LOOSE", "OTHER", "OTHERS", 
                      "SOLDASLOOSE", "LOOSESAMPLE", "LOOSECONDITION"}
 BATCH_PREFIX_RE = re.compile(r"^\s*(batch|b|lot)\s*(no|number)?\s*[.:\-]*\s*", re.I)
 
-
 def _present(v):
     return v is not None and not (isinstance(v, float) and pd.isna(v)) and str(v) != ""
-
 
 def tokens(text):
     out = []
@@ -46,11 +44,9 @@ def tokens(text):
         out.extend(SYNONYMS.get(t, []))
     return out
 
-
 def key_tokens(text):
     return [t for t in str(text or "").split() if t not in CORPORATE and t not in GENERIC and len(t) > 1
             and not t.isdigit()]
-
 
 def normalize_batch(value):
     if not _present(value):
@@ -59,7 +55,6 @@ def normalize_batch(value):
     s = re.sub(r"[^A-Z0-9]", "", s)
     return None if s in PLACEHOLDER_BATCH or len(s) < 2 else s
 
-
 def _token_found(token, pool):
     if token in pool:
         return True
@@ -67,12 +62,10 @@ def _token_found(token, pool):
         return False
     return any(len(p) >= 4 and fuzz.ratio(token, p) >= 85 for p in pool)
 
-
 def _coverage(keys, pool):
     if not keys:
         return None
     return 100.0 * sum(_token_found(k, pool) for k in keys) / len(keys)
-
 
 def brand_score(recall, purchase):
     purchase_pool = set(tokens(f"{purchase.get('brand_norm') or ''} {purchase.get('product_norm') or ''}"))
@@ -83,14 +76,12 @@ def brand_score(recall, purchase):
     scores = [s for s in scores if s is not None]
     return max(scores) if scores else None
 
-
 def shared_brand_tokens(recall, purchase):
     purchase_pool = set(tokens(f"{purchase.get('brand_norm') or ''} {purchase.get('product_norm') or ''}"))
     recall_keys = set(key_tokens(recall.get("brand_norm"))) | set(key_tokens(recall.get("fbo_norm")))
     shared = {k for k in recall_keys if _token_found(k, purchase_pool)}
     shared |= {p for p in purchase_pool if any(_token_found(p, {k}) for k in shared)}
     return shared
-
 
 def product_score(recall, purchase):
     shared = shared_brand_tokens(recall, purchase)
@@ -101,7 +92,6 @@ def product_score(recall, purchase):
         return None
     return float(fuzz.token_set_ratio(" ".join(sorted(set(p))), " ".join(sorted(set(r)))))
 
-
 def batch_score(recall, purchase):
     rb, pb = normalize_batch(recall.get("batch_no")), normalize_batch(purchase.get("batch_no"))
     if not rb or not pb:
@@ -109,7 +99,6 @@ def batch_score(recall, purchase):
     if rb == pb or (min(len(rb), len(pb)) >= 4 and (rb in pb or pb in rb)):
         return 100.0
     return 0.0
-
 
 def score_pair(recall, purchase):
     parts = {k: v for k, v in {"product": product_score(recall, purchase), "brand": brand_score(recall, purchase),
@@ -139,10 +128,8 @@ def score_pair(recall, purchase):
         reasons.append("bought after the recalled batch expired")
     return round(score, 1), {k: round(v, 1) for k, v in parts.items()}, reasons
 
-
 def search_text(record):
     return " ".join(str(record.get(k) or "") for k in ("brand_norm", "product_norm", "fbo_norm")).strip()
-
 
 def candidates_in_memory(recalls, purchase, limit=CANDIDATE_LIMIT):
     if "search_norm" in recalls.columns:
@@ -153,7 +140,6 @@ def candidates_in_memory(recalls, purchase, limit=CANDIDATE_LIMIT):
     hits = process.extract(" ".join(tokens(query)), choices, scorer=fuzz.token_set_ratio,
                            score_cutoff=CANDIDATE_CUTOFF, limit=limit)
     return [idx for _, _, idx in hits]
-
 
 def score_candidates(recalls, purchases):
     rows = []
@@ -168,12 +154,10 @@ def score_candidates(recalls, purchases):
     cols = ["purchase_id", "recall_id", "score", "product_score", "brand_score", "batch_score", "notes"]
     return pd.DataFrame(rows, columns=cols)
 
-
 def match_all(recalls, purchases, threshold=75.0):
     scored = score_candidates(recalls, purchases)
     return scored[scored["score"] >= threshold].sort_values(["purchase_id", "score"], ascending=[True, False]) \
         .reset_index(drop=True)
-
 
 def _metrics(tp, fp, fn):
     precision = tp / (tp + fp) if tp + fp else 0.0
@@ -182,10 +166,8 @@ def _metrics(tp, fp, fn):
     return {"tp": tp, "fp": fp, "fn": fn, "precision": round(precision, 3), "recall": round(recall, 3),
             "f1": round(f1, 3)}
 
-
 def _best(out):
     return out.sort_values(["f1", "recall", "threshold"], ascending=[False, False, True]).iloc[0].to_dict()
-
 
 def evaluate(scored_pairs, labels, thresholds=None):
     lab = labels.copy()
@@ -201,7 +183,6 @@ def evaluate(scored_pairs, labels, thresholds=None):
     out = pd.DataFrame(results)
     return out, _best(out)
 
-
 def evaluate_end_to_end(recalls, purchases, gold, thresholds=None):
     scored = score_candidates(recalls, purchases)
     gold_pairs = set(zip(gold["purchase_id"].astype(str), gold["recall_id"].astype(str)))
@@ -216,7 +197,6 @@ def evaluate_end_to_end(recalls, purchases, gold, thresholds=None):
     best = _best(out)
     best["candidate_recall"] = round(len(retrieved & gold_pairs) / len(gold_pairs), 3) if gold_pairs else None
     return out, best, scored
-
 
 def score_labeled_pairs(recalls, purchases, labels):
     r = recalls.set_index("recall_id").to_dict("index")

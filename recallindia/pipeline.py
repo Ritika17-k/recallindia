@@ -3,13 +3,11 @@ from . import alerts
 from .config import ALERT_CHANNEL
 from .review import AUTO, PENDING
 
-
 def _counts(matches):
     if matches.empty:
         return {AUTO: 0, PENDING: 0}
     vc = matches["status"].value_counts()
     return {AUTO: int(vc.get(AUTO, 0)), PENDING: int(vc.get(PENDING, 0))}
-
 
 def ingest_purchases(engine, purchases, user_id=None, source=None, send=True, channel=None):
     """Save new purchases, match only those against the recalls, and alert on high-confidence matches."""
@@ -24,7 +22,6 @@ def ingest_purchases(engine, purchases, user_id=None, source=None, send=True, ch
     c = _counts(matches)
     return {"purchases": n, "auto_published": c[AUTO], "pending_review": c[PENDING], "alerts_queued": queued,
             "alerts_sent": sent, "matches": matches}
-
 
 def refresh(engine, recalls=None, send=True, channel=None):
     """Load fresh recalls, rematch every purchase, queue and send alerts. Logged in the runs table."""

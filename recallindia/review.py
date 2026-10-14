@@ -1,10 +1,4 @@
-"""Confidence bands and the manual review queue.
-
-High-confidence matches are published to the user straight away. Medium-confidence matches wait in the review
-queue and are never shown or alerted until a reviewer approves them.
-"""
 import pandas as pd
-
 from .config import AUTO_PUBLISH_SCORE, REVIEW_MIN_SCORE
 
 AUTO = "auto_published"
@@ -13,7 +7,6 @@ APPROVED = "approved"
 REJECTED = "rejected"
 STATUSES = (AUTO, PENDING, APPROVED, REJECTED)
 VISIBLE = (AUTO, APPROVED)
-
 
 def band(score, auto=AUTO_PUBLISH_SCORE, floor=REVIEW_MIN_SCORE):
     """Return the status a new match with this score starts in, or None if it is discarded."""
@@ -25,29 +18,19 @@ def band(score, auto=AUTO_PUBLISH_SCORE, floor=REVIEW_MIN_SCORE):
         return PENDING
     return None
 
-
 def confidence(score, auto=AUTO_PUBLISH_SCORE, floor=REVIEW_MIN_SCORE):
     status = band(score, auto, floor)
     return {AUTO: "high", PENDING: "medium"}.get(status, "low")
 
-
 def assign_status(matches, auto=AUTO_PUBLISH_SCORE, floor=REVIEW_MIN_SCORE):
-    """Add a status column and drop matches below the review floor."""
     out = matches.copy()
     out["status"] = [band(s, auto, floor) for s in out["score"]]
     return out[out["status"].notna()].reset_index(drop=True)
 
-
 def visible(matches):
     return matches[matches["status"].isin(VISIBLE)]
 
-
 def review_metrics(scored, gold, auto=AUTO_PUBLISH_SCORE, floor=REVIEW_MIN_SCORE):
-    """How the two bands perform against hand-labelled true matches.
-
-    Assumes a reviewer approves true matches and rejects false ones, so `recall_after_review` is the best the
-    pipeline can reach and `queue_size` is the work it costs.
-    """
     gold_pairs = set(zip(gold["purchase_id"].astype(str), gold["recall_id"].astype(str)))
 
     def pairs(df):
@@ -69,7 +52,6 @@ def review_metrics(scored, gold, auto=AUTO_PUBLISH_SCORE, floor=REVIEW_MIN_SCORE
         "recall_after_review": round((auto_tp + queue_tp) / n, 3),
         "missed": len(gold_pairs) - auto_tp - queue_tp,
     }
-
 
 def queue_frame(matches, recalls, purchases):
     """Join pending matches with the recall and purchase text a reviewer needs to decide."""

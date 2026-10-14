@@ -1,14 +1,6 @@
-"""Read purchases from a photo or scan of a shop receipt.
-
-OCR uses Tesseract through pytesseract. Install the Tesseract program itself (on Windows, the UB Mannheim
-installer) and set TESSERACT_CMD in .env if it is not on PATH. The parser works on plain text too, so receipts that
-are already text (for example a PDF invoice copied out) can skip OCR.
-"""
 import re
 from pathlib import Path
-
 from dateutil import parser as dateparser
-
 from .intake import is_meta, looks_like_product, split_trackable, to_purchases
 
 DATE_RES = [
@@ -22,7 +14,6 @@ END_RE = re.compile(r"\b(sub\s?total|total|net\s?(amt|amount|payable)|grand\s?to
                     r"no\.?\s*of\s*items|total\s*items)\b", re.I)
 NUMBER_TOKEN_RE = re.compile(r"^[\d,]+(?:[.:]\d{1,3})?$")
 LEADING_CODE_RE = re.compile(r"^(?:\d{1,3}[.)]?|\d{4,14})$")
-
 
 def ocr_image(path, tesseract_cmd=None):
     """Text from a receipt image. Upscales small photos and boosts contrast before OCR."""
@@ -49,7 +40,6 @@ def ocr_image(path, tesseract_cmd=None):
     img = ImageOps.autocontrast(img)
     return pytesseract.image_to_string(img, config="--psm 6")
 
-
 def find_date(text):
     for rx in DATE_RES:
         for m in rx.finditer(text):
@@ -60,7 +50,6 @@ def find_date(text):
             if 2000 <= d.year <= 2100:
                 return d
     return None
-
 
 def parse_item_line(line):
     """Split 'HSN NAME PACK QTY RATE AMOUNT' into name, quantity and amount. Returns None for non-item lines."""
@@ -88,7 +77,6 @@ def parse_item_line(line):
             pass
     return {"product_name": name, "quantity": qty, "amount": amount, "has_price": bool(trailing)}
 
-
 def parse_receipt_text(text):
     """Store name, date and product lines from receipt text."""
     lines = [re.sub(r"\s+", " ", l).strip() for l in text.splitlines()]
@@ -107,7 +95,6 @@ def parse_receipt_text(text):
             item.pop("has_price")
             items.append(item)
     return {"store": store, "purchase_date": find_date(text), "items": items}
-
 
 def import_receipt(path_or_text, user_id, is_text=False, store=None):
     """Parse one receipt into (purchases DataFrame, parsed receipt)."""

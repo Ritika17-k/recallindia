@@ -1,14 +1,3 @@
-"""Import purchases from order-confirmation emails.
-
-Two ways in:
-- A Google Takeout export of Gmail (an .mbox file), a folder of .eml files, or a single .eml. Needs nothing extra.
-- The Gmail API (read-only), when google-api-python-client and google-auth-oauthlib are installed and a
-  credentials.json from Google Cloud is present. See README.
-
-Order emails differ by retailer and change often, so the item finder uses general patterns rather than one
-template per shop: "2 x Item ₹54", table rows with a quantity or price cell, and an item line followed by a
-"Qty: 1" line. Check imported lines with `import-email --dry-run` before saving them.
-"""
 import mailbox
 import re
 from email import policy
@@ -16,7 +5,6 @@ from email.parser import BytesParser
 from email.utils import parseaddr, parsedate_to_datetime
 from html.parser import HTMLParser
 from pathlib import Path
-
 from .intake import is_meta, looks_like_product, split_trackable, to_purchases
 
 RETAILERS = {
@@ -44,7 +32,6 @@ TIMES_SUFFIX_RE = re.compile(r"^(.+?)\s+[x×]\s*(\d{1,3})\s*$", re.I)
 TRAILING_PRICE_RE = re.compile(r"\s*(?:" + PRICE + r"|[\d,]+\.\d{2})\s*$", re.I)
 NOISE_RE = re.compile(r"\s*\|\s*$")
 
-
 class _TextExtractor(HTMLParser):
     """HTML to lines: table cells separated by tabs, block elements end a line."""
     BLOCK = {"p", "div", "br", "li", "tr", "h1", "h2", "h3", "h4", "h5", "h6", "table", "section", "article"}
@@ -71,7 +58,6 @@ class _TextExtractor(HTMLParser):
         if not self.skip:
             self.parts.append(re.sub(r"\s+", " ", data))
 
-
 def html_to_lines(html):
     p = _TextExtractor()
     p.feed(html)
@@ -83,15 +69,12 @@ def html_to_lines(html):
             lines.append("\t".join(cells))
     return lines
 
-
 def text_to_lines(text):
     return [re.sub(r"[  ]{2,}", "\t", l).strip() for l in text.splitlines() if l.strip()]
-
 
 def _clean_name(name):
     name = TRAILING_PRICE_RE.sub("", name).strip(" -:|•*\t")
     return re.sub(r"\s{2,}", " ", name)
-
 
 def find_items(lines):
     """Product lines in an order email, as dicts with product_name and quantity."""
@@ -133,7 +116,6 @@ def find_items(lines):
                 break
     return items
 
-
 def _body_lines(msg):
     html = plain = None
     for part in msg.walk() if msg.is_multipart() else [msg]:
@@ -152,14 +134,12 @@ def _body_lines(msg):
     # HTML keeps table structure, which carries most of the item information
     return html_to_lines(html) if html else text_to_lines(plain or "")
 
-
 def retailer_for(sender):
     domain = parseaddr(sender or "")[1].lower().rsplit("@", 1)[-1]
     for known, name in RETAILERS.items():
         if domain == known or domain.endswith("." + known):
             return name
     return None
-
 
 def is_order_email(msg, retailer):
     subject = str(msg.get("Subject", ""))
@@ -168,7 +148,6 @@ def is_order_email(msg, retailer):
     if PROMO_SUBJECT_RE.search(subject) and not STRONG_ORDER_RE.search(subject):
         return False
     return retailer is not None
-
 
 def parse_order_email(msg, require_known_retailer=True):
     """Return {retailer, order_date, message_id, subject, items} or None if this isn't an order email."""
@@ -187,10 +166,8 @@ def parse_order_email(msg, require_known_retailer=True):
             "not_tracked": not_tracked,
             "subject": str(msg.get("Subject", ""))}
 
-
 def read_message(data):
     return BytesParser(policy=policy.default).parsebytes(data)
-
 
 def iter_messages(path):
     """Messages from an .mbox file, an .eml file, or a folder of .eml files."""
@@ -203,7 +180,6 @@ def iter_messages(path):
     else:
         for m in mailbox.mbox(str(path), factory=None, create=False):
             yield read_message(m.as_bytes())
-
 
 def gmail_api_messages(query=GMAIL_QUERY, max_results=200, credentials=None, token=None):
     """Raw messages from Gmail through the API, read-only. Opens a browser window the first time."""
@@ -240,7 +216,6 @@ def gmail_api_messages(query=GMAIL_QUERY, max_results=200, credentials=None, tok
         page = resp.get("nextPageToken")
         if not page:
             break
-
 
 def import_messages(messages, user_id, require_known_retailer=True):
     """Parse messages into (purchases DataFrame, list of parsed orders)."""

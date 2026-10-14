@@ -1,11 +1,8 @@
 from datetime import date
-
 import pandas as pd
-
 from .clean import DATE_COLUMNS, is_placeholder_reason
 
 REQUIRED = ["recall_id", "product_name", "recall_date"]
-
 
 def profile(df):
     rows = len(df)
@@ -26,7 +23,6 @@ def profile(df):
             info["examples"] = [str(v) for v in s[non_null].astype(str).unique()[:3]]
         cols[col] = info
     return {"rows": rows, "columns": cols}
-
 
 def validate(df, today=None):
     today = today or date.today()
@@ -59,7 +55,6 @@ def validate(df, today=None):
     for col in ["brand", "batch_no", "reason", "status"]:
         add("warning", f"{col} is missing", df.index[df[col].isna()])
     return {"rows": int(len(df)), "passed": not errors, "errors": errors, "warnings": warnings}
-
 
 def to_markdown(prof, val, clean_report=None):
     lines = ["# Data quality report", ""]

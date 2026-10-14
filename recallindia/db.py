@@ -1,17 +1,13 @@
 import math
-
 import pandas as pd
 from sqlalchemy import (Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text,
                         UniqueConstraint, create_engine, func, select, text)
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import DeclarativeBase, Session
-
 from .config import AUTO_PUBLISH_SCORE, DATABASE_URL, DEFAULT_USER_ID
-
 
 class Base(DeclarativeBase):
     pass
-
 
 class Recall(Base):
     __tablename__ = "recalls"
@@ -41,7 +37,6 @@ class Recall(Base):
     first_seen_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
-
 class User(Base):
     __tablename__ = "users"
     user_id = Column(String(64), primary_key=True)
@@ -49,7 +44,6 @@ class User(Base):
     name = Column(Text)
     alerts_enabled = Column(Boolean, nullable=False, server_default="true")
     created_at = Column(DateTime, server_default=func.now())
-
 
 class Purchase(Base):
     __tablename__ = "purchases"
@@ -68,7 +62,6 @@ class Purchase(Base):
     status = Column(String(16), nullable=False, server_default="active")
     created_at = Column(DateTime, server_default=func.now())
 
-
 class Match(Base):
     __tablename__ = "matches"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -86,7 +79,6 @@ class Match(Base):
     created_at = Column(DateTime, server_default=func.now())
     __table_args__ = (UniqueConstraint("purchase_id", "recall_id"),)
 
-
 class Alert(Base):
     __tablename__ = "alerts"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -102,7 +94,6 @@ class Alert(Base):
     created_at = Column(DateTime, server_default=func.now())
     sent_at = Column(DateTime)
 
-
 class PushSubscription(Base):
     __tablename__ = "push_subscriptions"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -111,7 +102,6 @@ class PushSubscription(Base):
     p256dh = Column(Text, nullable=False)
     auth = Column(Text, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
-
 
 class Run(Base):
     __tablename__ = "runs"
@@ -124,12 +114,10 @@ class Run(Base):
     alerts_queued = Column(Integer)
     alerts_sent = Column(Integer)
 
-
 class FoodCategory(Base):
     __tablename__ = "food_categories"
     code = Column(String(16), primary_key=True)
     name = Column(Text, nullable=False)
-
 
 class Substance(Base):
     __tablename__ = "substances"
@@ -138,7 +126,6 @@ class Substance(Base):
     name = Column(Text, nullable=False)
     kind = Column(Text)
     aliases = Column(Text)
-
 
 class Rule(Base):
     __tablename__ = "rules"
@@ -155,7 +142,6 @@ class Rule(Base):
     effective_from = Column(Text)
     __table_args__ = (UniqueConstraint("substance_id", "category", "status"),)
 
-
 class GlobalStatus(Base):
     __tablename__ = "global_status"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -168,7 +154,6 @@ class GlobalStatus(Base):
     as_of = Column(Text)
     verified = Column(String(8))
     __table_args__ = (UniqueConstraint("substance_id", "jurisdiction"),)
-
 
 class Product(Base):
     __tablename__ = "products"
@@ -183,11 +168,8 @@ class Product(Base):
     source = Column(Text)
     fetched_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
-
 REFERENCE_TABLES = [("food_categories.csv", FoodCategory, "code"), ("substances.csv", Substance, "substance_id")]
 
-# Columns added after the first release. create_all() does not alter existing tables, so these bring an older
-# database up to date. Each statement is safe to run again.
 MIGRATIONS = [
     "ALTER TABLE recalls ADD COLUMN IF NOT EXISTS source VARCHAR(16) NOT NULL DEFAULT 'FSSAI'",
     "ALTER TABLE recalls ADD COLUMN IF NOT EXISTS first_seen_at TIMESTAMP DEFAULT now()",
@@ -226,8 +208,6 @@ CANDIDATE_SQL = text("""
 """)
 WORD_SIMILARITY_THRESHOLD = 0.3
 
-# Re-running the matcher refreshes scores but never undoes a reviewer's decision, and never pulls back a match
-# the user has already been alerted about.
 SAVE_MATCH_SQL = text("""
     INSERT INTO matches (purchase_id, recall_id, score, product_score, brand_score, batch_score, notes, status)
     VALUES (:purchase_id, :recall_id, :score, :product_score, :brand_score, :batch_score, :notes, :status)

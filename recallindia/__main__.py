@@ -2,20 +2,16 @@ import argparse
 import json
 import sys
 from pathlib import Path
-
 import pandas as pd
 
 from .config import (AUTO_PUBLISH_SCORE, CLEAN_DIR, DATA, DEFAULT_USER_ID, EVAL_DIR, RAW_DIR, REFERENCE_DIR, REPORT_DIR,
                      REVIEW_MIN_SCORE, SAMPLES_DIR)
 
-
 def _read_csv(path):
     return pd.read_csv(path, dtype=str, keep_default_na=False)
 
-
 def _clean_path(name):
     return CLEAN_DIR / f"{name}.pkl"
-
 
 def cmd_discover(args):
     from .config import FOSCOS_URL, RECALL_URL
@@ -33,12 +29,10 @@ def cmd_discover(args):
         print("Requests captured:", len(summary["requests"]))
         print(f"Saved to {out}")
 
-
 def cmd_scrape(args):
     from .scraper import scrape
     path, info = scrape(args.url, args.max_pages)
     print(f"Scraped {info['rows']} rows from {info['pages']} pages ({info['source']}) -> {path}")
-
 
 def cmd_clean(args):
     from .clean import clean_purchases, clean_recalls
@@ -59,7 +53,6 @@ def cmd_clean(args):
         purchases.to_pickle(_clean_path("purchases"))
         print(f"Purchases: {len(purchases)} rows")
 
-
 def cmd_report(args):
     from .quality import profile, to_markdown, validate
     recalls = pd.read_pickle(_clean_path("recalls"))
@@ -72,7 +65,6 @@ def cmd_report(args):
     print(f"Validation {'PASSED' if val['passed'] else 'FAILED'}: {len(val['errors'])} error rules, "
           f"{len(val['warnings'])} warning rules -> {REPORT_DIR / 'quality_report.md'}")
 
-
 def cmd_load(args):
     from .db import Recall, get_engine, init_db, new_recall_count, save_purchases, upsert
     engine = get_engine()
@@ -84,13 +76,11 @@ def cmd_load(args):
         purchases = pd.read_pickle(_clean_path("purchases"))
         print(f"Loaded {save_purchases(engine, purchases, user_id=args.user, source='csv')} purchases")
 
-
 def _print_bands(matches):
     from .review import AUTO, PENDING
     vc = matches["status"].value_counts() if len(matches) else {}
     print(f"{int(vc.get(AUTO, 0))} auto-published (score >= {AUTO_PUBLISH_SCORE:.0f}), "
           f"{int(vc.get(PENDING, 0))} sent to the review queue ({REVIEW_MIN_SCORE:.0f}-{AUTO_PUBLISH_SCORE:.0f})")
-
 
 def cmd_match(args):
     from .review import assign_status
@@ -111,7 +101,6 @@ def cmd_match(args):
     matches.to_csv(REPORT_DIR / "matches.csv", index=False)
     _print_bands(matches)
     print(f"-> {REPORT_DIR / 'matches.csv'}" + (f" and {REPORT_DIR / 'review_queue.csv'}" if args.memory else ""))
-
 
 def cmd_run(args):
     from .clean import clean_recalls
@@ -135,7 +124,6 @@ def cmd_run(args):
     init_db(engine)
     summary = refresh(engine, recalls, send=not args.no_send, channel=args.channel)
     print(json.dumps(summary, indent=2))
-
 
 def cmd_review(args):
     from .db import decide, get_engine, review_queue
@@ -162,7 +150,6 @@ def cmd_review(args):
         sent, failed = alerts.dispatch(engine)
         print(f"Alerts: {queued} queued, {sent} sent, {failed} failed")
 
-
 def cmd_alerts(args):
     from . import alerts
     from .db import get_engine
@@ -170,7 +157,6 @@ def cmd_alerts(args):
     queued = alerts.queue_alerts(engine, args.channel)
     sent, failed = (0, 0) if args.queue_only else alerts.dispatch(engine, args.channel)
     print(f"{queued} alerts queued, {sent} sent, {failed} failed")
-
 
 def cmd_users(args):
     from .db import User, get_engine, init_db, read_table, upsert
@@ -182,7 +168,6 @@ def cmd_users(args):
         print(f"Saved user {args.user_id}")
     else:
         print(read_table(engine, User).to_string(index=False))
-
 
 def _save_or_preview(purchases, args, label):
     if purchases.empty:
@@ -205,7 +190,6 @@ def _save_or_preview(purchases, args, label):
     summary.pop("matches", None)
     print(json.dumps(summary, indent=2))
 
-
 def cmd_import_email(args):
     from .email_import import gmail_api_messages, import_messages, iter_messages
     if args.gmail:
@@ -219,7 +203,6 @@ def cmd_import_email(args):
     print(f"{len(orders)} order emails: " + ", ".join(sorted({o['retailer'] for o in orders})))
     _save_or_preview(purchases, args, "order emails")
 
-
 def cmd_import_receipt(args):
     from .receipts import import_receipt
     frames = []
@@ -231,7 +214,6 @@ def cmd_import_receipt(args):
             print(parsed["text"])
         frames.append(purchases)
     _save_or_preview(pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(), args, "receipts")
-
 
 def cmd_global_status(args):
     from .global_status import GlobalStatus
@@ -254,7 +236,6 @@ def cmd_global_status(args):
     if results:
         print("\n" + results[0]["disclaimer"])
 
-
 def _evaluate_set(recalls, purchases_path, gold_path, name):
     from .clean import clean_purchases
     from .matching import evaluate_end_to_end
@@ -273,7 +254,6 @@ def _evaluate_set(recalls, purchases_path, gold_path, name):
           f"recall {bands['auto_recall']}; review queue {bands['queue_size']} "
           f"({bands['queue_true_matches']} true); recall after review {bands['recall_after_review']}")
     return {"set": name, "purchases": len(purchases), "true_matches": len(gold), **best, **bands}
-
 
 def cmd_evaluate(args):
     from .clean import clean_purchases, clean_recalls
@@ -303,7 +283,6 @@ def cmd_evaluate(args):
     pd.DataFrame(summaries).to_csv(REPORT_DIR / "evaluation_summary.csv", index=False)
     print(f"\nSummary -> {REPORT_DIR / 'evaluation_summary.csv'}")
 
-
 def _memory_recall_lookup():
     path = _clean_path("recalls")
     if not path.exists():
@@ -313,13 +292,11 @@ def _memory_recall_lookup():
     return lambda product_norm, brand_norm: [recalls.loc[i].to_dict() for i in
                                              candidates_in_memory(recalls, {"product_norm": product_norm})]
 
-
 def cmd_load_rules(args):
     from .db import get_engine, init_db, load_reference
     engine = get_engine()
     init_db(engine)
     print(load_reference(engine, args.dir or REFERENCE_DIR))
-
 
 def cmd_check(args):
     from . import openfoodfacts
@@ -355,7 +332,6 @@ def cmd_check(args):
         print(f"  No restriction found: {', '.join(ok)}")
     print(result["disclaimer"])
 
-
 def cmd_vapid_keys(args):
     from .push import generate_vapid_keys
     public, private = generate_vapid_keys()
@@ -363,7 +339,6 @@ def cmd_vapid_keys(args):
     print(f"VAPID_PUBLIC_KEY={public}")
     print(f"VAPID_PRIVATE_KEY={private}")
     print("VAPID_SUBJECT=mailto:you@example.com")
-
 
 def setup_database():
     """First start on a new server: tables, rules, and the bundled FSSAI recall snapshot if there are no recalls yet."""
@@ -385,7 +360,6 @@ def setup_database():
     else:
         print(f"{count} recalls already loaded")
 
-
 def cmd_serve(args):
     import os
     import uvicorn
@@ -394,7 +368,6 @@ def cmd_serve(args):
     port = args.port or int(os.environ.get("PORT", "8000"))
     uvicorn.run("recallindia.api:app", host=args.host, port=port, reload=False, proxy_headers=True,
                 forwarded_allow_ips="*")
-
 
 def main(argv=None):
     p = argparse.ArgumentParser(prog="recallindia", description="Indian product recall alerts")
@@ -495,7 +468,6 @@ def main(argv=None):
     s.set_defaults(func=cmd_serve)
     args = p.parse_args(argv)
     args.func(args)
-
 
 if __name__ == "__main__":
     main()

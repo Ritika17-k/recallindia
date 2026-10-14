@@ -1,14 +1,7 @@
-"""Recall alerts: turn visible matches into messages and send them.
-
-Only auto-published and reviewer-approved matches reach this module, so a medium-confidence match is never
-alerted. Messages state what the official notice says and what the user should check; they make no claim about a
-product beyond the notice.
-"""
 import smtplib
 from datetime import date, datetime
 from email.message import EmailMessage
 from pathlib import Path
-
 from . import config
 from .clean import is_placeholder_reason
 from .matching import normalize_batch
@@ -27,14 +20,12 @@ def _s(v):
         return v.strftime("%d %b %Y")
     return str(v).strip()
 
-
 def reason_text(reason):
     """The reason line, or a plain statement that the notice gives none."""
     r = _s(reason)
     if not r or is_placeholder_reason(r):
         return "The notice does not give a usable reason. Open it on the regulator's portal for details."
     return r
-
 
 def batch_advice(purchase_batch, recall_batch):
     pb, rb = normalize_batch(purchase_batch), normalize_batch(recall_batch)
@@ -43,7 +34,6 @@ def batch_advice(purchase_batch, recall_batch):
     if rb:
         return f"Check the batch or lot number on your pack. The recall covers batch {_s(recall_batch)}."
     return "The notice does not list a batch number, so check the notice before using the product."
-
 
 def build_message(row):
     """Subject and body for one visible match. `row` comes from db.alertable()."""
@@ -84,7 +74,6 @@ def build_message(row):
     subject = f"Recall alert: {recalled or bought} ({source} notice {_s(row.get('recall_id'))})"
     return subject, "\n".join(lines)
 
-
 def _email(alert):
     msg = EmailMessage()
     msg["From"] = config.ALERT_FROM
@@ -92,7 +81,6 @@ def _email(alert):
     msg["Subject"] = alert["subject"]
     msg.set_content(alert["body"])
     return msg
-
 
 def send(alert, channel=None):
     """Deliver one alert. Raises on failure so the caller can mark it failed."""
@@ -116,7 +104,6 @@ def send(alert, channel=None):
     else:
         raise ValueError(f"unknown alert channel {channel!r}")
 
-
 def queue_alerts(engine, channel=None):
     """Create one queued alert for every visible match that has none yet."""
     from .db import alertable, insert_alerts
@@ -127,7 +114,6 @@ def queue_alerts(engine, channel=None):
         rows.append({"match_id": row["match_id"], "user_id": row["user_id"], "channel": channel,
                      "subject": subject, "body": body})
     return insert_alerts(engine, rows)
-
 
 def dispatch(engine, channel=None):
     """Send every queued alert. Returns (sent, failed)."""

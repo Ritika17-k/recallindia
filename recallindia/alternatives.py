@@ -6,21 +6,13 @@ no ingredient information is never suggested, because nothing can be said about 
 from .checker import find_recalls
 from .config import AUTO_PUBLISH_SCORE
 
-
 def flagged_substances(check_result):
     return {f["substance_id"]: (f["substance"], f.get("ins")) for f in check_result["findings"] if f["severity"] > 0}
-
 
 def _label(name, ins):
     return f"{name} (INS {ins})" if ins else name
 
-
 def find_alternatives(rulebook, product, check_result, search, recall_lookup=None, limit=4, category_tags=None):
-    """Up to `limit` products from the same Open Food Facts category without the original's flagged ingredients.
-
-    `search(tag)` returns products shaped like openfoodfacts.product_from(); `recall_lookup` is the same callable
-    the checker uses, so a suggestion never has a high-confidence recall match.
-    """
     flagged = flagged_substances(check_result)
     if not flagged:
         return {"reason": "no_flags", "items": []}
@@ -50,19 +42,13 @@ def find_alternatives(rulebook, product, check_result, search, recall_lookup=Non
                 return {"reason": None, "items": out}
     return {"reason": None if out else "none_found", "items": out}
 
-
-# ---------- alternatives to a recalled product ----------
-
-# Words that say nothing about which product it is, so they're left out of the search and brand comparison.
 _GENERIC = {"and", "the", "with", "for", "new", "pack", "packet", "pouch", "box", "jar", "bottle", "pvt", "ltd",
             "limited", "private", "company", "foods", "food", "products", "product", "india", "indian", "industries",
             "enterprises", "traders", "brand", "premium", "pure", "special", "fresh", "quality", "best"}
 
-
 def _words(text):
     from .clean import normalize_name
     return [w for w in normalize_name(text).split() if len(w) > 2 and not w.isdigit() and w not in _GENERIC]
-
 
 def recall_query(recall, query=None):
     """Search words for products like the recalled one.
@@ -81,12 +67,10 @@ def recall_query(recall, query=None):
     kept = [w for w in words if w not in brand_words]
     return " ".join((kept or words)[:4])
 
-
 def _same_brand(a, b):
     """Two brand names refer to the same brand (shared distinctive word, or one contains the other)."""
     wa, wb = set(_words(a)), set(_words(b))
     return bool(wa and wb and (wa & wb))
-
 
 def _relevant(cand, query_words):
     """The candidate's name or Open Food Facts categories share a word (or its plural) with the search."""
@@ -95,15 +79,7 @@ def _relevant(cand, query_words):
     return any(h == q or (len(q) > 3 and (h.startswith(q) or q.startswith(h)) and len(h) > 3)
                for q in query_words for h in hay)
 
-
 def find_recall_alternatives(recall, search, recall_lookup=None, query=None, limit=4, min_score=None):
-    """Up to `limit` similar products, from other brands, that match no FSSAI recall.
-
-    `search(terms)` returns products shaped like openfoodfacts.product_from(). A candidate is dropped if it has no
-    brand (nothing to check a recall against), shares a brand with the recalled product, or matches any recall at
-    review confidence or above, which is stricter than the alert threshold on purpose. Facts only: "no FSSAI recall
-    on record" is not a claim that a product is safe.
-    """
     from .config import REVIEW_MIN_SCORE
     floor = REVIEW_MIN_SCORE if min_score is None else min_score
     q = recall_query(recall, query)

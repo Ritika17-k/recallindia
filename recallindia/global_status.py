@@ -6,9 +6,7 @@ rulebook (data/reference/rules.csv), so there is one source of truth for Indian 
 """
 import re
 from pathlib import Path
-
 import pandas as pd
-
 from .clean import normalize_name
 from .config import REFERENCE_DIR
 
@@ -32,14 +30,12 @@ DISCLAIMER = ("Regulatory status of an ingredient, taken from each regulator's p
               "about any product or brand, and rules marked unverified are still being checked against the official "
               "text.")
 
-
 def load(directory=None):
     path = Path(directory or REFERENCE_DIR) / "global_status.csv"
     if not path.exists():
         return pd.DataFrame(columns=["substance_id", "jurisdiction", "status", "note", "source", "source_url",
                                      "as_of", "verified"])
     return pd.read_csv(path, dtype=str, keep_default_na=False)
-
 
 def india_status(rulebook, substance_id):
     """Summarise the FSSAI rules that apply across all foods."""
@@ -61,7 +57,6 @@ def india_status(rulebook, substance_id):
         note = f"Not permitted in categories {', '.join(cats)}; other categories not loaded yet."
     return {"jurisdiction": "IN", "status": status, "note": note, "source": rule["source"],
             "source_url": rule["source_url"], "verified": rule["verified"] == "yes"}
-
 
 class GlobalStatus:
     def __init__(self, rulebook, table=None):

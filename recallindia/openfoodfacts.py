@@ -83,7 +83,6 @@ def fetch(barcode, timeout=15):
     except urllib.error.URLError as e:
         raise ProductLookupError(f"Could not reach Open Food Facts: {e.reason}") from e
 
-
 def search_category(tag, country="en:india", page_size=50, timeout=20):
     """Products in one Open Food Facts category sold in `country`, most scanned first. Cached for a day."""
     key = (tag, country)
@@ -104,7 +103,6 @@ def search_category(tag, country="en:india", page_size=50, timeout=20):
     _search_cache[key] = (time.time(), products)
     return products
 
-
 def category_tags_for(terms):
     """Open Food Facts category tags named by the search words, e.g. "garam masala" -> ["en:masalas"]."""
     words = re.findall(r"[a-z]+", (terms or "").lower())
@@ -118,11 +116,9 @@ def category_tags_for(terms):
         tags.append("en:spices")
     return list(dict.fromkeys(tags))
 
-
 # Common Indian spice words, so "chilli powder" or "hing" still finds the spices category.
 SPICE_WORDS = {"chilli", "chili", "mirchi", "turmeric", "haldi", "hing", "asafoetida", "jeera", "cumin", "dhania",
                "coriander", "pepper", "cardamom", "elaichi", "clove", "cinnamon", "ajwain", "methi", "fenugreek"}
-
 
 def search_products(terms, country="india"):
     """Full-text search first; if it fails or finds nothing, the category search named by the words."""
@@ -140,9 +136,7 @@ def search_products(terms, country="india"):
         raise error
     return out
 
-
 TEXT_SEARCH_API = "https://world.openfoodfacts.org/cgi/search.pl"
-
 
 def search_text(terms, country="india", page_size=50, timeout=20):
     """Products sold in `country` whose name or category matches `terms` (e.g. "mixed masala"), most scanned first.

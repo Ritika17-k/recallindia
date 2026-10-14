@@ -1,9 +1,7 @@
 """Shared helpers for purchase intake (order emails, receipts, manual entry)."""
 import hashlib
 import re
-
 import pandas as pd
-
 from .clean import clean_purchases
 
 PURCHASE_COLUMNS = ["purchase_id", "user_id", "product_name", "brand", "batch_no", "store", "purchase_date", "source",
@@ -22,7 +20,6 @@ PRODUCE_WORDS = {
     "bunch", "pc", "pcs", "piece", "pieces", "nos", "dozen", "robusta", "elaichi", "kesar", "alphonso",
 }
 
-
 def is_trackable(name):
     """False for loose goods and plain fresh produce ("ONION 1KG", "Loose sugar"); True for packaged products."""
     name = str(name or "")
@@ -30,7 +27,6 @@ def is_trackable(name):
         return False
     words = re.findall(r"[a-z]+", re.sub(r"\d+(\.\d+)?\s*(g|gm|gms|kg|ml|l|ltr|pcs?|nos)\b", " ", name.lower()))
     return not words or any(w not in PRODUCE_WORDS for w in words)
-
 
 def split_trackable(items):
     kept, skipped = [], []
@@ -55,10 +51,8 @@ META_RE = re.compile(r"\b(" + "|".join(re.escape(w) for w in sorted(META_WORDS, 
                      re.I)
 LETTERS_RE = re.compile(r"[A-Za-z]")
 
-
 def is_meta(line):
     return bool(META_RE.search(line))
-
 
 def looks_like_product(name):
     """Enough letters to be a product name and not just a code or a number."""
@@ -66,11 +60,9 @@ def looks_like_product(name):
     words = [w for w in re.findall(r"[A-Za-z][A-Za-z'&.-]*", name) if len(w) >= 2]
     return len(LETTERS_RE.findall(name)) >= 4 and len(words) >= 1 and not is_meta(name)
 
-
 def stable_id(prefix, *parts):
     digest = hashlib.sha1("\x1f".join(str(p) for p in parts).encode("utf-8")).hexdigest()[:12].upper()
     return f"{prefix}-{digest}"
-
 
 def to_purchases(items, user_id, source, store=None, purchase_date=None, key=""):
     """Turn parsed line items into cleaned purchase rows ready for db.save_purchases or matching.
