@@ -17,25 +17,20 @@ SESSION_DAYS = int(os.environ.get("SESSION_DAYS", "30"))
 TOKENINFO = "https://oauth2.googleapis.com/tokeninfo"
 GOOGLE_ISSUERS = {"accounts.google.com", "https://accounts.google.com"}
 
-
 class AuthError(Exception):
     pass
-
 
 def _b64(data):
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
 
-
 def _unb64(text):
     return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
-
 
 def make_session(user_id, days=None, now=None):
     payload = {"u": user_id, "exp": int((now or time.time()) + 86400 * (days or SESSION_DAYS))}
     body = _b64(json.dumps(payload, separators=(",", ":")).encode())
     sig = _b64(hmac.new(SECRET_KEY.encode(), body.encode(), hashlib.sha256).digest())
     return f"{body}.{sig}"
-
 
 def read_session(token, now=None):
     """The user id inside a valid, unexpired session token, else None."""
@@ -49,12 +44,10 @@ def read_session(token, now=None):
     except (ValueError, KeyError, TypeError):
         return None
 
-
 def bearer(authorization):
     if authorization and authorization.lower().startswith("bearer "):
         return authorization[7:].strip()
     return None
-
 
 def check_google_claims(claims, client_id=None, now=None):
     """Validate the fields of a Google ID token (as returned by the tokeninfo endpoint)."""
@@ -71,7 +64,6 @@ def check_google_claims(claims, client_id=None, now=None):
         raise AuthError("Sign-in is missing an account id.")
     return claims
 
-
 def verify_google_token(id_token, timeout=10):
     """Ask Google to verify the ID token from the sign-in button, then check it is for this app."""
     url = f"{TOKENINFO}?{urllib.parse.urlencode({'id_token': id_token})}"
@@ -83,7 +75,6 @@ def verify_google_token(id_token, timeout=10):
     except urllib.error.URLError as e:
         raise AuthError(f"Couldn't reach Google: {e.reason}") from e
     return check_google_claims(claims)
-
 
 def google_user_id(claims):
     return f"g{claims['sub']}"
