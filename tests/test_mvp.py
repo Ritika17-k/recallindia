@@ -308,6 +308,33 @@ def test_alternatives_skip_flagged_unknown_and_recalled(gs):
     assert searched[0] == "en:cream-biscuits"  # most specific category first
 
 
+def test_recall_alternatives_other_brands_without_recalls():
+    from recallindia.alternatives import find_recall_alternatives, recall_query
+    from recallindia.openfoodfacts import category_tags_for, product_from
+    assert recall_query({"brand": "Eastern - CHILLI POWDER", "product_name": "Chillies and Capsicum"}) == "chilli powder"
+    assert recall_query({"brand": "Ramdev", "product_name": "x"}, "RAMDEV HING 50G") == "hing"
+    assert category_tags_for("garam masala") == ["en:masalas"] and category_tags_for("hing") == ["en:spices"]
+    pool = [product_from(p) for p in [
+        {"code": "1", "product_name": "Mixed Masala", "brands": "Ramdev Foods"},                      # recalled brand
+        {"code": "2", "product_name": "Garam Masala", "brands": "MDH", "categories_tags": ["en:masalas"]},
+        {"code": "3", "product_name": "Kitchen Masala", "brands": "Badbrand"},                         # has a recall
+        {"code": "4", "product_name": "Milk Chocolate", "brands": "Cadbury"},                          # not similar
+        {"code": "5", "product_name": "Mixed Masala"},                                                 # no brand
+        {"code": "6", "product_name": "Sabzi Masala", "brands": "Everest"},
+    ]]
+    def recalls(product_norm, brand_norm):
+        if "badbrand" in brand_norm:
+            return [{"recall_id": "R9", "product_name": "Kitchen Masala", "brand": "Badbrand", "brand_norm": "badbrand",
+                     "product_norm": "kitchen masala", "fbo_norm": "", "batch_no": None, "reason": "x"}]
+        return []
+    searched = []
+    out = find_recall_alternatives({"recall_id": "256", "brand": "Ramdev", "product_name": "Mixed Masala"},
+                                   lambda q: searched.append(q) or pool, recall_lookup=recalls, query="Mixed Masala")
+    assert searched == ["mixed masala"]
+    assert [a["barcode"] for a in out["items"]] == ["2", "6"]
+    assert out["items"][0]["notes"] == ["No FSSAI recall on record", "Different brand"]
+
+
 def test_alternatives_only_when_something_is_flagged(gs):
     from recallindia.alternatives import find_alternatives
     from recallindia.checker import check_product

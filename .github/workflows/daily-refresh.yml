@@ -1,0 +1,50 @@
+# Scrapes FSSAI FoSCoS every morning and updates the hosted RecallIndia database:
+# loads new recalls, rematches every user's products, fills the review queue and sends alerts.
+# Needs the repo secret DATABASE_URL (Render > recallindia-db > Connect > External Database URL).
+name: Daily FSSAI recall refresh
+
+on:
+  schedule:
+    - cron: "30 2 * * *"   # 02:30 UTC = 08:00 IST
+  workflow_dispatch:         # "Run workflow" button for a manual run
+
+concurrency:
+  group: recall-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Scrape FoSCoS, load recalls, rematch, alert
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ALERT_CHANNEL: console
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then echo "::error::Add the DATABASE_URL repository secret first"; exit 1; fi
+          python -m recallindia run --scrape
+
+      - name: Keep the scraped file for 14 days
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: foscos-scrape-${{ github.run_number }}
+          path: data/raw/recalls_raw_*.csv
+          retention-days: 14
+          if-no-files-found: ignore

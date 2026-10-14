@@ -167,6 +167,13 @@ def _match_out(m, r):
                                              "batch": m.batch_score}.items() if v is not None},
                     notes=[n for n in (m.notes or "").split("; ") if n])
 
+def _remove_temp(path):
+    """Delete an uploaded temp file. On Windows a file still held open can't be deleted; leave it for the OS."""
+    try:
+        Path(path).unlink(missing_ok=True)
+    except PermissionError:
+        pass
+
 def _ingest(user_id, purchases):
     with SessionLocal() as s:
         if not s.get(User, user_id):
@@ -174,8 +181,9 @@ def _ingest(user_id, purchases):
     summary = ingest_purchases(engine, purchases, user_id=user_id)
     summary.pop("matches", None)
     summary["purchase_ids"] = list(purchases["purchase_id"]) if len(purchases) else []
-    summary["lines"] = purchases[["purchase_id", "product_name", "store", "purchase_date"]].astype(str).to_dict(
-        "records") if len(purchases) else []
+    cols = ["purchase_id", "product_name", "store", "purchase_date"]
+    summary["lines"] = [{c: "" if pd.isna(r[c]) else str(r[c]) for c in cols}
+                        for r in purchases[cols].to_dict("records")] if len(purchases) else []
     return summary
 
 APP_DIR = Path(__file__).parent / "static" / "app"
@@ -212,6 +220,26 @@ def get_recall(recall_id: str, session: Session = Depends(get_session)):
     if not recall:
         raise HTTPException(404, "Recall not found")
     return recall
+
+@app.get("/recalls/{recall_id}/alternatives")
+def recall_alternatives(recall_id: str, q: Optional[str] = None, limit: int = Query(4, ge=1, le=8),
+                        session: Session = Depends(get_session)):
+    """Similar products from other brands (Open Food Facts, sold in India) that match no FSSAI recall.
+    `q` is the user's own product name, when there is one; otherwise the search comes from the recall itself."""
+    from .alternatives import find_recall_alternatives
+    recall = session.get(Recall, recall_id.upper())
+    if not recall:
+        raise HTTPException(404, "Recall not found")
+    row = {col.name: getattr(recall, col.name) for col in Recall.__table__.columns}
+    try:
+        found = find_recall_alternatives(row, openfoodfacts.search_products, recall_lookup=recall_lookup, query=q,
+                                         limit=limit)
+    except openfoodfacts.ProductLookupError as e:
+        raise HTTPException(502, str(e))
+    found["recall_id"] = recall.recall_id
+    found["note"] = ("Other brands from Open Food Facts with no FSSAI recall on record. "
+                     "Not a safety rating; check the label yourself.")
+    return found
 
 @app.post("/match", response_model=list[MatchOut])
 def match(req: MatchRequest, include_medium: bool = False, session: Session = Depends(get_session)):
@@ -386,8 +414,10 @@ async def upload_receipt(user_id: str, file: UploadFile = File(...)):
         purchases, parsed = import_receipt(tmp.name, user_id)
     except RuntimeError as e:
         raise HTTPException(501, str(e))
+    except ValueError as e:
+        raise HTTPException(422, str(e))
     finally:
-        Path(tmp.name).unlink(missing_ok=True)
+        _remove_temp(tmp.name)
     summary = _ingest(user_id, purchases)
     summary["receipt"] = {"store": parsed["store"], "purchase_date": parsed["purchase_date"]}
     summary["not_tracked"] = [i["product_name"] for i in parsed.get("not_tracked", [])]
@@ -502,8 +532,10 @@ async def check_photo(file: UploadFile = File(...), category: Optional[str] = Fo
         text = ocr_image(tmp.name)
     except RuntimeError as e:
         raise HTTPException(501, str(e))
+    except ValueError as e:
+        raise HTTPException(422, str(e))
     finally:
-        Path(tmp.name).unlink(missing_ok=True)
+        _remove_temp(tmp.name)
     ingredients = label_ingredients(text)
     if len(ingredients) < 5:
         raise HTTPException(422, "Couldn't read an ingredient list in that photo. Try a closer, sharper photo of "

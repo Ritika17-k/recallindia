@@ -103,3 +103,68 @@ def search_category(tag, country="en:india", page_size=50, timeout=20):
     products = [product_from(p) for p in (data.get("products") or []) if isinstance(p, dict)]
     _search_cache[key] = (time.time(), products)
     return products
+
+
+def category_tags_for(terms):
+    """Open Food Facts category tags named by the search words, e.g. "garam masala" -> ["en:masalas"]."""
+    words = re.findall(r"[a-z]+", (terms or "").lower())
+    tags = []
+    for _, keys in CATEGORY_MAP:
+        for k in keys:
+            stem = k.rstrip("s")
+            if any(len(w) > 3 and (w == k or w == stem or w.rstrip("s") == stem) for w in words):
+                tags.append(f"en:{k}")
+    if any(w in SPICE_WORDS for w in words):
+        tags.append("en:spices")
+    return list(dict.fromkeys(tags))
+
+
+# Common Indian spice words, so "chilli powder" or "hing" still finds the spices category.
+SPICE_WORDS = {"chilli", "chili", "mirchi", "turmeric", "haldi", "hing", "asafoetida", "jeera", "cumin", "dhania",
+               "coriander", "pepper", "cardamom", "elaichi", "clove", "cinnamon", "ajwain", "methi", "fenugreek"}
+
+
+def search_products(terms, country="india"):
+    """Full-text search first; if it fails or finds nothing, the category search named by the words."""
+    error = None
+    try:
+        found = search_text(terms, country=country)
+        if found:
+            return found
+    except ProductLookupError as e:
+        error = e
+    out = []
+    for tag in category_tags_for(terms)[:2]:
+        out += search_category(tag, country=f"en:{country}")
+    if not out and error:
+        raise error
+    return out
+
+
+TEXT_SEARCH_API = "https://world.openfoodfacts.org/cgi/search.pl"
+
+
+def search_text(terms, country="india", page_size=50, timeout=20):
+    """Products sold in `country` whose name or category matches `terms` (e.g. "mixed masala"), most scanned first.
+    Uses Open Food Facts' full-text search, because recalls and receipts give a product name, not a category tag.
+    Cached for a day."""
+    key = ("text", terms, country)
+    hit = _search_cache.get(key)
+    if hit and time.time() - hit[0] < SEARCH_CACHE_SECONDS:
+        return hit[1]
+    params = urllib.parse.urlencode({"search_terms": terms, "search_simple": 1, "action": "process", "json": 1,
+                                     "page_size": page_size, "sort_by": "unique_scans_n", "fields": SEARCH_FIELDS,
+                                     "tagtype_0": "countries", "tag_contains_0": "contains", "tag_0": country})
+    req = urllib.request.Request(f"{TEXT_SEARCH_API}?{params}", headers={"User-Agent": USER_AGENT})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        raise ProductLookupError(f"Open Food Facts search returned {e.code}") from e
+    except urllib.error.URLError as e:
+        raise ProductLookupError(f"Could not reach Open Food Facts: {e.reason}") from e
+    except ValueError as e:  # an HTML error page instead of JSON
+        raise ProductLookupError("Open Food Facts search returned an unexpected response") from e
+    products = [product_from(p) for p in (data.get("products") or []) if isinstance(p, dict)]
+    _search_cache[key] = (time.time(), products)
+    return products

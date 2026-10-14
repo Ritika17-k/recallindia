@@ -56,3 +56,13 @@ The hosted service doesn't run the scraper (it needs a full browser). Run it fro
 - A free web service sleeps when nobody uses it, so the first visit after a while takes up to a minute to wake.
 - Free databases have limits and may expire. Check Render's current pricing page and back up anything you care about.
 - Alerts are printed to the service log (`ALERT_CHANNEL=console`). To email them, set `ALERT_CHANNEL=email` and the `SMTP_*` values from `.env.example`.
+
+## 6. Daily recall refresh (GitHub Actions, free)
+
+The Render service doesn't scrape on its own. `.github/workflows/daily-refresh.yml` does it every day at 08:00 IST on GitHub's servers and writes to the Render database.
+
+1. In Render, open **recallindia-db > Connect** and copy the **External Database URL**.
+2. In GitHub, open the repo's **Settings > Secrets and variables > Actions > New repository secret**. Add `DATABASE_URL` with that URL. For phone notifications, also add `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT`.
+3. Open the **Actions** tab, pick **Daily FSSAI recall refresh**, and click **Run workflow** to test it. The log ends with the run summary (`new_recalls`, `auto_published`, ...).
+
+GitHub pauses scheduled workflows in a repo with no commits for 60 days; re-enable it from the Actions tab. If FoSCoS refuses connections from GitHub's servers (outside India), the run fails at the scrape step; keep the Windows Task Scheduler refresh in that case, pointed at the Render URL.

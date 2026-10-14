@@ -306,17 +306,26 @@ async function viewHome() {
       <a class="search" href="#/lookup">${icon.search}Search an ingredient or E-number</a>
       <div class="stack">
         <h2>Latest FSSAI recalls</h2>
-        <div class="card list">${s.latest_recalls.map((r) => `
-          <div class="item" style="cursor:default"><div style="flex:1;min-width:0">
+        <div class="card list">${s.latest_recalls.map((r, i) => `
+          <button class="item" data-recall="${i}"><div style="flex:1;min-width:0">
             <div class="t">${esc([r.brand, r.product_name].filter(Boolean).join(" · "))}</div>
             <div class="s">${r.batch_no ? `Batch ${esc(r.batch_no)}` : "No batch listed"} · Recall ${esc(r.recall_id)}${r.recall_type ? ` · ${esc(r.recall_type)}` : ""}</div></div>
-            <div class="tiny muted">${esc(fmtDate(r.recall_date))}</div></div>`).join("") || '<div class="empty">No recalls loaded yet.</div>'}</div>
+            <div class="tiny muted">${esc(fmtDate(r.recall_date))}</div>${icon.chev}</button>`).join("") || '<div class="empty">No recalls loaded yet.</div>'}</div>
       </div>`;
     pushCard(view.querySelector("#push-card"));
+    view.querySelectorAll("[data-recall]").forEach((b) => (b.onclick = () => recallSheet(s.latest_recalls[Number(b.dataset.recall)])));
   } catch (e) {
     view.innerHTML = header(`<div class="brand"><span class="logo">${icon.shield}</span>RecallIndia</div>`) + errorBox(e, true);
   }
 }
+function recallSheet(r) {
+  openSheet(`
+    <div><h2>${esc([r.brand, r.product_name].filter(Boolean).join(" · "))}</h2>
+      <div class="small muted">FSSAI recall ${esc(r.recall_id)}${r.recall_date ? ` · ${esc(fmtDate(r.recall_date))}` : ""}</div></div>
+    <div class="card pad small">${r.batch_no ? `Recalled batch <b>${esc(r.batch_no)}</b>. Only this batch is affected.` : "No batch listed on the notice."}${r.recall_type ? ` · ${esc(r.recall_type)}` : ""}</div>
+    ${recallAltBox(r.recall_id)}`, (s) => loadRecallAlternatives(s));
+}
+
 function refreshBadgeFrom(s) {
   const b = document.getElementById("alert-badge");
   b.textContent = s.open_alerts;
@@ -517,16 +526,45 @@ async function loadAlternatives(r) {
     const out = await api(`/alternatives?barcode=${encodeURIComponent(r.barcode)}${r.category ? `&category=${encodeURIComponent(r.category)}` : ""}`);
     if (!view.contains(box)) return;
     if (!out.items.length) { spot.outerHTML = '<div class="card pad small muted">No similar products with ingredient details found yet.</div>'; return; }
-    spot.outerHTML = `<div class="grid2">${out.items.map((a) => `
+    spot.outerHTML = altGrid(out.items);
+    box.querySelectorAll("[data-alt]").forEach((b) => (b.onclick = () => checkBarcode(b.dataset.alt)));
+  } catch {
+    if (spot && view.contains(box)) spot.outerHTML = '<div class="card pad small muted">Suggestions are unavailable right now.</div>';
+  }
+}
+
+const altGrid = (items) => `<div class="grid2">${items.map((a) => `
       <button class="card pad stack" data-alt="${esc(a.barcode)}" style="gap:6px;text-align:left;cursor:pointer;font:inherit">
         ${a.image_url ? `<img src="${esc(a.image_url)}" alt="" loading="lazy" style="width:100%;height:84px;object-fit:contain;border-radius:10px;background:#fff">` : '<div style="height:84px;border-radius:10px;background:#EDEFE9"></div>'}
         <div style="font-weight:700;font-size:13px;line-height:1.3">${esc(a.product_name)}</div>
         ${a.brand ? `<div class="tiny muted">${esc(a.brand)}</div>` : ""}
         ${a.notes.map((n) => `<div class="tiny" style="color:var(--accent);font-weight:600">${esc(n)}</div>`).join("")}
       </button>`).join("")}</div>`;
-    box.querySelectorAll("[data-alt]").forEach((b) => (b.onclick = () => checkBarcode(b.dataset.alt)));
-  } catch {
-    if (spot && view.contains(box)) spot.outerHTML = '<div class="card pad small muted">Suggestions are unavailable right now.</div>';
+
+// Similar products from other brands with no FSSAI recall, shown on alerts, recalled products and recalls.
+const recallAltBox = (recallId, q) => `
+  <div class="stack" data-ralts="${esc(recallId)}" data-q="${esc(q || "")}">
+    <div><h2 style="font-size:15px">Similar products with no FSSAI recall</h2>
+      <div class="tiny muted">Other brands, from Open Food Facts. Not a safety rating; check the label yourself.</div></div>
+    <div class="spinner" style="margin:12px auto"></div></div>`;
+
+async function loadRecallAlternatives(root) {
+  for (const box of root.querySelectorAll("[data-ralts]")) {
+    const spot = box.querySelector(".spinner");
+    if (!spot) continue;
+    try {
+      const q = box.dataset.q ? `&q=${encodeURIComponent(box.dataset.q)}` : "";
+      const out = await api(`/recalls/${encodeURIComponent(box.dataset.ralts)}/alternatives?limit=4${q}`);
+      if (!document.body.contains(box)) continue;
+      if (!out.items.length) {
+        spot.outerHTML = '<div class="card pad small muted">No similar products from other brands found on Open Food Facts.</div>';
+        continue;
+      }
+      spot.outerHTML = altGrid(out.items);
+      box.querySelectorAll("[data-alt]").forEach((b) => (b.onclick = () => { closeSheet(); checkBarcode(b.dataset.alt); }));
+    } catch {
+      if (document.body.contains(box)) spot.outerHTML = '<div class="card pad small muted">Suggestions are unavailable right now.</div>';
+    }
   }
 }
 
@@ -679,13 +717,15 @@ function productSheet(p) {
     ${rc.length ? `<div class="card list">${rc.map((r) => `<div class="item" style="cursor:default"><span class="dot ${r.feedback === "not_my_batch" ? "grey" : "red"}"></span><div style="flex:1">
       <div class="t">Recall ${esc(r.recall_id)}: ${esc([r.brand, r.product].filter(Boolean).join(" · "))}</div>
       <div class="s">${r.batch ? `Recalled batch ${esc(r.batch)}` : "No batch listed"}${r.feedback === "not_my_batch" ? " · you said not your batch" : ""}</div></div></div>`).join("")}</div>
-      <a class="btn danger block" href="#/alerts">Open the alert</a>` : '<div class="card pad small">No recall matches this product.</div>'}
+      <a class="btn danger block" href="#/alerts">Open the alert</a>
+      ${activeRecalls(p).length && p.status !== "finished" ? recallAltBox(activeRecalls(p)[0].recall_id, p.product_name) : ""}` : '<div class="card pad small">No recall matches this product.</div>'}
     <form class="stack" id="batch"><label class="field">Batch number<input class="input" name="batch_no" value="${esc(p.batch_no || "")}" placeholder="Printed near the expiry date"></label>
       <button class="btn ghost block">Save batch number</button></form>
     <div class="grid2">
       <button class="btn ghost" id="finish">${p.status === "finished" ? "Watch again" : "Finished it"}</button>
       <button class="btn ghost" id="del" style="color:var(--red)">Delete</button></div>`, (s) => {
     const path = userPath(`/purchases/${encodeURIComponent(p.purchase_id)}`);
+    loadRecallAlternatives(s);
     s.querySelector("#batch").addEventListener("submit", async (e) => {
       e.preventDefault();
       try {
@@ -729,6 +769,7 @@ async function viewAlerts() {
           <span>Reason</span><span>${esc(r.reason_text)}</span>
         </div>
         <div class="todo"><b>What to do</b><div style="margin-top:4px">${esc(r.batch_advice)} If it is the recalled batch, stop using it and return it to the shop or contact the company.</div></div>
+        ${recallAltBox(r.recall_id, r.purchase_product)}
         ${answered ? `<div class="tag ${r.feedback === "has_batch" ? "red" : "grey"}" style="align-self:flex-start">${r.feedback === "has_batch" ? "You have this batch" : "Not your batch"}</div>` : `
         <div class="grid2"><button class="btn danger" data-fb="has_batch" data-id="${r.id}">I have this batch</button>
           <button class="btn ghost" data-fb="not_my_batch" data-id="${r.id}">Not my batch</button></div>`}
@@ -739,6 +780,7 @@ async function viewAlerts() {
     ${rows.map(card).join("") || `<div class="card empty">${icon.check}<b>No alerts</b><span>You'll see an alert here if something you bought is recalled.</span></div>`}
     <p class="note">RecallIndia passes on official recall notices. A recall applies only to the batches named in the notice.</p>`;
   view.querySelectorAll("[data-open]").forEach((b) => (b.onclick = () => { state.openAlert = Number(b.dataset.open); viewAlerts(); }));
+  loadRecallAlternatives(view);
   view.querySelectorAll("[data-fb]").forEach((b) => (b.onclick = async () => {
     try {
       await api(userPath(`/alerts/${b.dataset.id}/feedback`), { method: "POST", json: { answer: b.dataset.fb } });

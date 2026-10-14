@@ -53,6 +53,7 @@ Alongside this, a **Global Regulatory Status** lookup shows how an ingredient is
 | Global Regulatory Status | `global_status`, `data/reference/global_status.csv` | `global-status 127`, `global-status --divergent` |
 | Label and barcode check | `checker`, `rulebook`, `openfoodfacts` | The app's Scan screen, or `check --barcode …` / `check --text …` |
 | Phone app (PWA) | `static/app/` | `serve`, then open http://127.0.0.1:8000 |
+| Alternatives to recalled products | `alternatives`, `openfoodfacts` | Shown on each alert, on a recalled product in My Products, and on a recall tapped on Home. `GET /recalls/{id}/alternatives` |
 
 ### Review queue
 
@@ -298,6 +299,7 @@ Set `TEST_DATABASE_URL` to an empty test database to include the PostgreSQL inte
 | GET | `/admin/review` | Review page |
 | POST | `/admin/alerts/send` | Queue and send pending alerts |
 | GET | `/recalls?q=…`, `/recalls/{id}` | Recall search and detail |
+| GET | `/recalls/{id}/alternatives?q=…` | Similar products from other brands (Open Food Facts, India) with no FSSAI recall on record |
 | GET | `/global-status?q=127`, `/global-status/divergent` | Global Regulatory Status |
 | GET | `/sources` | Regulators covered and planned |
 | GET | `/stats` | Counts, matches and alerts by status, last refresh, recalls by month |

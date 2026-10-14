@@ -28,14 +28,21 @@ def ocr_image(path, tesseract_cmd=None):
     """Text from a receipt image. Upscales small photos and boosts contrast before OCR."""
     try:
         import pytesseract
-        from PIL import Image, ImageOps
+        from PIL import Image, ImageFile, ImageOps, UnidentifiedImageError
     except ImportError as e:
         raise RuntimeError("Receipt OCR needs: pip install pytesseract pillow, plus the Tesseract program") from e
     from .config import TESSERACT_CMD
     if tesseract_cmd or TESSERACT_CMD:
         pytesseract.pytesseract.tesseract_cmd = tesseract_cmd or TESSERACT_CMD
-    img = Image.open(path)
-    img = ImageOps.exif_transpose(img).convert("L")
+    # Phone and WhatsApp JPEGs are often missing a few trailing bytes; read them anyway.
+    ImageFile.LOAD_TRUNCATED_IMAGES = True
+    try:
+        # Load fully and close the file straight away, so Windows can delete the temp file afterwards.
+        with Image.open(path) as src:
+            src.load()
+            img = ImageOps.exif_transpose(src).convert("L")
+    except (UnidentifiedImageError, OSError) as e:
+        raise ValueError(f"Couldn't open that image ({e}). Try a JPG or PNG photo.") from e
     if img.width < 1200:
         scale = 1200 / img.width
         img = img.resize((int(img.width * scale), int(img.height * scale)), Image.LANCZOS)
