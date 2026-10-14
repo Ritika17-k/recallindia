@@ -1,8 +1,3 @@
-"""Phone notifications for recall alerts (Web Push).
-
-Needs VAPID keys (`python -m recallindia vapid-keys` prints a pair for .env) and the pywebpush package. Browsers allow
-push only on https (or localhost). Without keys, push is simply off and alerts still arrive in the app and by email.
-"""
 import base64
 import json
 import os
