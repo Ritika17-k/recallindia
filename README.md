@@ -1,16 +1,16 @@
 # RecallIndia
 
-RecallIndia is a consumer platform that collects official Indian product recall and ban notices in one place and alerts people when something they have bought is affected.
+RecallIndia collects official Indian product recall notices in one place and tells you when something you bought is affected.
 
-Today these notices are scattered across regulator websites, none of which offers an API, and no Indian consumer app matches them against what people actually buy.
+Right now these notices are spread across regulator websites. None of them has an API, and no Indian consumer app checks them against what people actually buy. This project is my attempt at that.
 
-## Problem
+## Why I built it
 
-- **Fragmented sources.** FSSAI's FoSCoS Food Recall portal, CDSCO's monthly PDF alert lists and BIS's individual web notices are all published separately. FoSCoS offers a paged table and an Excel export, not an API.
-- **No personalisation.** Consumers have to check each source themselves and recognise their own products in it.
-- **Market gap.** Global aggregators such as RecallScope and OECD GlobalRecalls exclude India. US apps such as Whystle and RecallSentry show the model works there.
+- **The sources are scattered.** FSSAI's FoSCoS Food Recall portal, CDSCO's monthly PDF alert lists and BIS's individual web notices are all published separately. FoSCoS gives you a paged table and an Excel export, not an API.
+- **Nothing is personal.** To find out if a recall affects you, you have to check each source yourself and recognise your own products in it.
+- **India is missing from the existing tools.** Global aggregators like RecallScope and OECD GlobalRecalls don't cover India. Apps like Whystle and RecallSentry in the US suggest the idea works.
 
-## Solution
+## How it works
 
 ```
  FSSAI FoSCoS ──► scraper ──► clean + validate ──┐
@@ -29,109 +29,116 @@ Today these notices are scattered across regulator websites, none of which offer
                       alerts ◄───────────────────────────────────────────┘
 ```
 
-Alongside this, a **Global Regulatory Status** lookup shows how an ingredient is regulated in India compared with the EU and the US, framed as each regulator's published status and never as a claim about a brand or product.
+There is also a **Global Regulatory Status** lookup. It shows how an ingredient is regulated in India compared with the EU and the US. It reports each regulator's published status and makes no claim about any brand or product.
 
-## MVP scope
+## What's done and what isn't
 
 | Item | Status |
 |---|---|
 | Phase 1: FSSAI recalls | Done. 236 real FoSCoS recalls scraped and cleaned (5 Oct 2026) |
-| Phase 2: CDSCO and BIS | Planned. Each recall carries a `source` column, and `GET /sources` lists the planned sources |
-| Matching engine | Rule-based on purpose: PostgreSQL trigram search for candidates, then weighted brand/product/batch scoring with caps. No ML |
-| Evaluation | 142 hand-labelled receipt lines (127 true matches) across a dev set and a separate holdout set. See [Measured accuracy](#measured-accuracy) |
+| Phase 2: CDSCO and BIS | Planned. Every recall has a `source` column, and `GET /sources` lists the planned ones |
+| Matching | Rule-based on purpose: PostgreSQL trigram search finds candidates, then a weighted brand/product/batch score with caps. No ML |
+| Evaluation | 142 hand-labelled receipt lines (127 true matches) split into a dev set and a separate holdout set. Details in [How accurate is it?](#how-accurate-is-it) |
 
-## Core features
+## What you can do with it
 
-| Feature | Where | How to use it |
+| Feature | Module | Command |
 |---|---|---|
-| Aggregation of FSSAI notices | `scraper`, `clean`, `quality` | `discover`, `scrape`, `clean`, `report` |
-| Fuzzy matching against purchase history | `matching`, `db` | `match`, or `run` for the full refresh |
-| Manual review queue for medium-confidence matches | `review`, `db`, `/admin/review` page | `review list / approve / reject` |
-| Alerts for matched recalls | `alerts`, `pipeline` | `alerts`, or automatically in `run`, after approval, and on import |
-| Gmail order-history import | `email_import` | `import-email takeout.mbox` or `import-email --gmail` |
-| Receipt OCR | `receipts` | `import-receipt photo.jpg` |
-| Global Regulatory Status | `global_status`, `data/reference/global_status.csv` | `global-status 127`, `global-status --divergent` |
-| Label and barcode check | `checker`, `rulebook`, `openfoodfacts` | The app's Scan screen, or `check --barcode …` / `check --text …` |
-| Phone app (PWA) | `static/app/` | `serve`, then open http://127.0.0.1:8000 |
-| Alternatives to recalled products | `alternatives`, `openfoodfacts` | Shown on each alert, on a recalled product in My Products, and on a recall tapped on Home. `GET /recalls/{id}/alternatives` |
+| Collect FSSAI notices | `scraper`, `clean`, `quality` | `discover`, `scrape`, `clean`, `report` |
+| Match recalls against your purchases | `matching`, `db` | `match`, or `run` for a full refresh |
+| Review medium-confidence matches | `review`, `db`, `/admin/review` | `review list / approve / reject` |
+| Get alerts | `alerts`, `pipeline` | `alerts`, or automatically in `run`, after approval and on import |
+| Import Gmail order history | `email_import` | `import-email takeout.mbox` or `import-email --gmail` |
+| Read receipts with OCR | `receipts` | `import-receipt photo.jpg` |
+| Look up global ingredient status | `global_status`, `data/reference/global_status.csv` | `global-status 127`, `global-status --divergent` |
+| Check a label or barcode | `checker`, `rulebook`, `openfoodfacts` | the app's Scan screen, or `check --barcode …` / `check --text …` |
+| Use it as a phone app (PWA) | `static/app/` | `serve`, then open http://127.0.0.1:8000 |
+| Suggest alternatives to a recalled product | `alternatives`, `openfoodfacts` | shown on alerts and in My Products. `GET /recalls/{id}/alternatives` |
 
-### Review queue
+### The review queue
 
-Every match gets a status from its score:
+Each match gets a status based on its score:
 
 | Score | Status | What the user sees |
 |---|---|---|
 | 85 and above | `auto_published` | The match, and an alert |
-| 65 to 85 | `pending_review` | Nothing, until a reviewer approves it |
+| 65 to 85 | `pending_review` | Nothing until a reviewer approves it |
 | Below 65 | discarded | Nothing |
 
-A reviewer approves (`approved`, alert sent) or rejects (`rejected`, never shown) each pending match from the command line or at http://127.0.0.1:8000/admin/review. Re-running the matcher refreshes scores but never undoes a decision, and never withdraws a match the user has already been alerted about. Both thresholds were set on the dev set only. 65 is the first score above the 60 caps for "batch differs" and "different product", and 85 is where precision stops rising. They can be changed in `.env` (`AUTO_PUBLISH_SCORE`, `REVIEW_MIN_SCORE`).
+A reviewer approves (alert sent) or rejects (never shown) each pending match, either from the command line or at http://127.0.0.1:8000/admin/review. Re-running the matcher refreshes scores but never undoes a decision, and never withdraws a match the user has already been alerted about.
+
+I set both thresholds using the dev set only. 65 is the first score above the 60 caps for "batch differs" and "different product", and 85 is where precision stops rising. You can change them in `.env` (`AUTO_PUBLISH_SCORE`, `REVIEW_MIN_SCORE`).
 
 ### Alerts
 
-An alert is created once per visible match (auto-published or approved) for users who have alerts turned on. It states what the notice says: the product, the recall ID, the date, the reason, the batch to compare, and a link to the notice. When FoSCoS gives no usable reason (38 notices just say "3", "Others" and similar), the alert says so rather than printing the placeholder. Channels:
+An alert is created once for each visible match (auto-published or approved), for users who have alerts turned on. It repeats what the notice says: the product, recall ID, date, reason, the batch to compare, and a link to the notice. If FoSCoS gives no usable reason (38 notices just say "3", "Others" and similar), the alert says so instead of printing the placeholder.
 
-- `outbox` (default): writes each alert as an `.eml` file in `data/outbox`, which you can open in any mail app
-- `email`: sends through SMTP. Set `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD` and `ALERT_FROM` in `.env`; for Gmail, use an app password
-- `console`: prints alerts
+Delivery channels:
 
-### Purchase intake
+- `outbox` (default) writes each alert as an `.eml` file in `data/outbox`, which any mail app can open
+- `email` sends through SMTP. Set `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD` and `ALERT_FROM` in `.env`. For Gmail, use an app password
+- `console` prints alerts
 
-Order emails and receipts go through the same path: the lines are parsed into purchases, saved with stable IDs (importing the same email twice adds nothing), matched only against those new lines, and alerted right away if there's a high-confidence match.
+### Getting purchases in
 
-- **Order emails.** Detects order mail from Amazon, Flipkart, BigBasket, Blinkit, Zepto, Swiggy Instamart, JioMart, DMart Ready and others by sender, skips promotions, and reads item lines from HTML tables, "2 x Item ₹54" lines and "Item… Quantity: 1" blocks. Delivery fees, taxes and totals are dropped. Two ways in:
-  - A Google Takeout export: at takeout.google.com choose Mail only, then run `import-email path\to\All mail.mbox`. Nothing extra to install.
-  - The Gmail API (read-only): `pip install -r requirements-intake.txt`, create an OAuth client of type "Desktop app" in Google Cloud Console with the Gmail API enabled, save it as `credentials.json` in the project folder, then run `import-email --gmail`. A browser window asks for consent the first time.
-- **Receipts.** Tesseract OCR with upscaling and contrast correction, then a parser that finds the shop name, the date and the item lines between the "Item … Qty … Amount" header and the total, removing HSN codes, quantities and prices.
+Order emails and receipts follow the same path. Lines are parsed into purchases and saved with stable IDs, so importing the same email twice adds nothing. Only the new lines are matched, and a high-confidence match triggers an alert straight away.
 
-Retailers change their email layouts, so run with `--dry-run` first. It prints the lines and writes them to `data/intake/` without saving.
+**Order emails.** The importer recognises order mail from Amazon, Flipkart, BigBasket, Blinkit, Zepto, Swiggy Instamart, JioMart, DMart Ready and others by sender, skips promotions, and reads item lines from HTML tables, "2 x Item ₹54" lines and "Item… Quantity: 1" blocks. Delivery fees, taxes and totals are dropped. There are two ways in:
+
+- A Google Takeout export. Go to takeout.google.com, choose Mail only, then run `import-email path\to\All mail.mbox`. Nothing extra to install.
+- The Gmail API, read-only. Run `pip install -r requirements-intake.txt`, create an OAuth client of type "Desktop app" in Google Cloud Console with the Gmail API enabled, save it as `credentials.json` in the project folder, then run `import-email --gmail`. A browser window asks for consent the first time.
+
+**Receipts.** Tesseract OCR with upscaling and contrast correction, then a parser that finds the shop name, the date and the item lines between the "Item … Qty … Amount" header and the total. It strips HSN codes, quantities and prices.
+
+Retailers change their email layouts, so run with `--dry-run` first. It prints the parsed lines and writes them to `data/intake/` without saving anything.
 
 ### Global Regulatory Status
 
-`data/reference/global_status.csv` has one row per ingredient and jurisdiction (EU, US, California) with the status, a one-line note, the source, a link, the date checked and a `verified` flag. India's status always comes from the FSSAI rulebook in `rules.csv`, so there is a single source of truth for Indian rules.
+`data/reference/global_status.csv` has one row per ingredient and jurisdiction (EU, US, California), with the status, a one-line note, the source, a link, the date checked and a `verified` flag. India's status always comes from the FSSAI rulebook in `rules.csv`, so Indian rules have a single source of truth.
 
 ```
 python -m recallindia global-status --divergent
 ```
 
-lists the ingredients India allows that another regulator does not. Today that's erythrosine (INS 127), Ponceau 4R (124) and carmoisine (122). An ingredient with no FSSAI rule loaded, or only a partial one (for example "not permitted in infant food"), is never presented as allowed in India.
+This lists ingredients that India allows but another regulator doesn't. Right now that's erythrosine (INS 127), Ponceau 4R (124) and carmoisine (122). An ingredient with no FSSAI rule loaded, or only a partial one (for example "not permitted in infant food"), is never shown as allowed in India.
 
-How this stays legally safe:
-- The lookup takes an ingredient (INS/E number or name) and nothing else. There is no brand or product input.
-- Each row states the regulator's own status with a link to it, and the output always carries the disclaimer.
-- Rows checked against an official regulator page are marked `verified=yes`: the EU titanium dioxide ban, FDA's Red No. 3 revocation, the BVO revocation, the cyclamate prohibition and FDA's food colour list. The others are marked `no` until checked.
+I kept this lookup deliberately narrow, to stay on the right side of defamation:
+
+- It takes an ingredient (INS/E number or name) and nothing else. There is no brand or product input.
+- Each row states the regulator's own status and links to it, and the output always carries a disclaimer.
+- Rows I've checked against an official regulator page are marked `verified=yes`: the EU titanium dioxide ban, FDA's Red No. 3 revocation, the BVO revocation, the cyclamate prohibition and FDA's food colour list. The rest are `no` until I've checked them.
 
 ## The app
 
-RecallIndia has a phone-friendly web app (a PWA) served by the same FastAPI server. There's no separate install or Node.js.
+There's a phone-friendly web app (a PWA) served by the same FastAPI server. No separate install and no Node.js needed.
 
 ```powershell
 python -m recallindia serve
 ```
 
-Then open **http://localhost:8000** (it goes to `/app/`). On first launch, enter your name to create an account. With `GOOGLE_CLIENT_ID` set, the app shows **Continue with Google** instead, and each person's products and alerts are private to their Google account.
+Open http://localhost:8000 (it redirects to `/app/`). On first launch you enter your name to create an account. If `GOOGLE_CLIENT_ID` is set, the app shows **Continue with Google** instead, and each person's products and alerts stay private to their Google account.
 
 | Screen | What it does |
 |---|---|
-| Home | Whether anything you bought matches a recall, how many products are watched, the latest FSSAI recalls |
-| Scan | Barcode by live camera (or a photo of it, or typed digits), a photo of the ingredient label (OCR), or typed ingredients |
-| Scan result | The verdict, each flagged ingredient with its FSSAI rule and status abroad, recall matches, "Save to My Products", and for scanned barcodes, similar products from the same category that don't list the flagged ingredients (Open Food Facts, India, cached for a day; worded as facts, not a safety rating) |
-| My Products | Everything you bought, grouped by shop and date, with its source (Gmail order, receipt photo, barcode, added). Import order emails, scan a receipt, add a product, set a batch number (rechecks it), mark finished, delete |
-| Alerts | Each recall alert with what to do, and "I have this batch" / "Not my batch". With notification keys set, new alerts also arrive as phone notifications |
+| Home | Shows whether anything you bought matches a recall, how many products are watched, and the latest FSSAI recalls |
+| Scan | Reads a barcode by live camera, photo or typed digits, or reads an ingredient label by photo (OCR) or typed text |
+| Scan result | Gives a verdict, each flagged ingredient with its FSSAI rule and its status abroad, any recall matches, and "Save to My Products". For scanned barcodes it also lists similar products from the same category that don't contain the flagged ingredients (Open Food Facts, India, cached for a day, worded as facts rather than a safety rating) |
+| My Products | Everything you bought, grouped by shop and date, with its source. You can import order emails, scan a receipt, add a product, set a batch number (which rechecks it), mark it finished, or delete it |
+| Alerts | Each recall alert with what to do, plus "I have this batch" / "Not my batch". With notification keys set, new alerts also arrive as phone notifications |
 | Ingredient lookup | Global Regulatory Status for any ingredient or E-number |
 
-Loose goods and fresh produce on receipts or orders (onions, loose sugar, eggs) aren't tracked, because they have no brand or batch to match against a recall notice. Imports list them as "not tracked".
+Loose goods and fresh produce (onions, loose sugar, eggs) aren't tracked, because they have no brand or batch to match against a recall notice. Imports list them as "not tracked".
 
-**Hosting on https:** `DEPLOY.md` walks through Render (free tier) with the included `Dockerfile` and `render.yaml`, plus setting up Google sign-in and notification keys.
+**Hosting on https:** `DEPLOY.md` walks through Render's free tier using the included `Dockerfile` and `render.yaml`, plus setting up Google sign-in and notification keys.
 
-**On your phone (without hosting):** start the server with `python -m recallindia serve --host 0.0.0.0`, find your laptop's IP with `ipconfig` (IPv4 Address), and open `http://<that IP>:8000` on a phone on the same Wi-Fi. Browsers only allow the live camera on https or on the laptop itself, so on a phone over Wi-Fi use **Take a photo of the barcode**, which works everywhere. Chrome's menu then offers **Add to Home screen**, so it opens like an app. When it's hosted with https (Render, Railway), the live camera works on phones too.
+**On your phone without hosting:** start the server with `python -m recallindia serve --host 0.0.0.0`, find your laptop's IP with `ipconfig` (the IPv4 address), and open `http://<that IP>:8000` on a phone on the same Wi-Fi. Browsers only allow the live camera over https or on the laptop itself, so on a phone over Wi-Fi use **Take a photo of the barcode**. Chrome's menu then offers **Add to Home screen**, so it opens like a normal app. Once it's hosted on https (Render, Railway), the live camera works on phones too.
 
-## Measured accuracy
+## How accurate is it?
 
-`python -m recallindia evaluate` runs the full pipeline (candidate search, then scoring) over all 236 real recalls for two hand-labelled sets:
+`python -m recallindia evaluate` runs the full pipeline (candidate search, then scoring) over all 236 real recalls, against two hand-labelled sets:
 
-- **Dev set** (`data/eval/real_*.csv`): 72 receipt lines, 71 true matches. These lines were written while the matcher was being built.
-- **Holdout set** (`data/eval/holdout_*.csv`): 70 lines, 56 true matches, written and labelled *before* the matcher was run on them, and not used for any tuning. It includes 17 hard negatives (same brand with a different product, same product from another brand, a different batch, a different variant) and 3 receipt-style abbreviations ("RMDEV MIX MSALA 50G"). Labels were completed by keyword search over all recalls, not by the scorer.
+- **Dev set** (`data/eval/real_*.csv`): 72 receipt lines, 71 true matches. I wrote these while building the matcher.
+- **Holdout set** (`data/eval/holdout_*.csv`): 70 lines, 56 true matches. I wrote and labelled these before running the matcher on them, and never used them for tuning. It includes 17 hard negatives (same brand but a different product, same product from another brand, a different batch, a different variant) and 3 receipt-style abbreviations like "RMDEV MIX MSALA 50G". I completed the labels by keyword search over all recalls, not by using the scorer.
 
 | Threshold | Dev precision | Dev recall | Holdout precision | Holdout recall |
 |---|---|---|---|---|
@@ -140,7 +147,7 @@ Loose goods and fresh produce on receipts or orders (onions, loose sugar, eggs) 
 | 85 | 0.98 | 0.86 | 0.98 | 0.86 |
 | 90 | 1.00 | 0.73 | 1.00 | 0.79 |
 
-The gap between dev and holdout at 65–80 (0.99 to 0.94 precision) is what the review queue is for. With the two bands, on the **holdout**:
+Precision at 65–80 drops from 0.99 on dev to 0.94 on holdout. That gap is the reason the review queue exists. With both bands applied, the holdout results are:
 
 | | Holdout |
 |---|---|
@@ -149,22 +156,23 @@ The gap between dev and holdout at 65–80 (0.99 to 0.94 precision) is what the 
 | Recall once reviewed | 0.88 |
 | Missed | 7 of 56 |
 
-So a user is shown a wrong match about 1 time in 50, and the reviewer's queue is small.
+In practice a user sees a wrong match about 1 time in 50, and the review queue stays small.
 
-The holdout errors are worth reading:
-- **6 of the 7 misses** have a full brand match, but the product score falls under the 60 cap. In 5 of them, FoSCoS describes the product only by its food category ("Non-carbonated Water Based Beverages", "Culinary Pastes", "Pickles"), and 3 of those also have the same batch. In 1, the receipt abbreviates the product ("RMDEV MIX MSALA"). The 7th abbreviates the brand too ("VPR GLD COCNT OIL"). A rule that sends "brand and batch agree, product differs" to review would catch 3 of them. It was found by looking at the holdout, though, so it needs a fresh test set before it can be claimed as an improvement.
-- **The 1 auto-published false positive** is Everest Kashmiri Lal chilli powder matched to a recall of Everest's Tikhalal chilli powder, a different variant from the same brand.
+The errors on the holdout are the most useful part:
 
-Real receipt lines from Gmail and OCR imports are the best next test set.
+- **6 of the 7 misses** have a full brand match, but the product score falls under the 60 cap. In 5 of them, FoSCoS describes the product only by food category ("Non-carbonated Water Based Beverages", "Culinary Pastes", "Pickles"), and 3 of those also have the same batch. In 1, the receipt abbreviates the product ("RMDEV MIX MSALA"). The 7th abbreviates the brand too ("VPR GLD COCNT OIL"). A rule sending "brand and batch agree, product differs" to review would catch 3 of them. But I found that rule by looking at the holdout, so I can't claim it as an improvement until I test it on fresh data.
+- **The one auto-published false positive** matched Everest Kashmiri Lal chilli powder to a recall of Everest's Tikhalal chilli powder, which is a different variant from the same brand.
 
-### Match scoring
+Real receipt lines from Gmail and OCR imports would make the best next test set.
 
-FoSCoS stores a food *category* in its Product column (for example "Chillies and Capsicum (Lal Mirchi)"). The actual product name usually sits in the Brand column ("Eastern - CHILLI POWDER"), and the FBO is often the shop that sold it. So a receipt line is compared with brand, product and FBO together.
+### How a match is scored
 
-1. **Candidates:** PostgreSQL trigram word similarity (`<%` on a GIN index) finds up to 25 recalls whose brand, product and FBO text resembles the receipt line.
-2. **Brand (40%):** the share of distinctive brand words found on the other side, checked both ways. Company suffixes (Pvt, Ltd, Foods, Traders) and product words (chilli, atta, ghee, bombay mixture) don't count as brand words. Spellings within 85% similarity count as the same word, so "Chaki" matches "Chakki".
-3. **Product (40%):** token set similarity of what's left after removing the shared brand words. Common Indian food words are mapped to one form first: hing → asafoetida, haldi → turmeric, jeera → cumin, rava/suji → semolina, mirchi → chilli, dahi → curd.
-4. **Batch (20%):** compared after removing spaces, punctuation and "Batch No." prefixes. Placeholders such as NIL, LOOSE or 0 are ignored.
+FoSCoS puts a food *category* in its Product column (for example "Chillies and Capsicum (Lal Mirchi)"). The actual product name is usually in the Brand column ("Eastern - CHILLI POWDER"), and the FBO is often the shop that sold it. So each receipt line is compared with brand, product and FBO together.
+
+1. **Candidates.** PostgreSQL trigram word similarity (`<%` on a GIN index) finds up to 25 recalls whose brand, product and FBO text looks like the receipt line.
+2. **Brand (40%).** The share of distinctive brand words found on the other side, checked both ways. Company suffixes (Pvt, Ltd, Foods, Traders) and product words (chilli, atta, ghee, bombay mixture) don't count as brand words. Spellings within 85% similarity count as the same word, so "Chaki" matches "Chakki".
+3. **Product (40%).** Token set similarity of whatever is left after removing the shared brand words. Common Indian food words are mapped to one form first: hing → asafoetida, haldi → turmeric, jeera → cumin, rava/suji → semolina, mirchi → chilli, dahi → curd.
+4. **Batch (20%).** Compared after removing spaces, punctuation and "Batch No." prefixes. Placeholders like NIL, LOOSE or 0 are ignored.
 
 If a part is missing, its weight is shared among the others. Then these caps apply:
 
@@ -177,26 +185,26 @@ If a part is missing, its weight is shared among the others. Then these caps app
 | Bought before the batch was made | 0 |
 | Bought after the batch expired | score halved |
 
-## Recall data pipeline
+## The recall data pipeline
 
 | Stage | Module | What it does |
 |---|---|---|
 | Discover | `scraper.discover` | Opens the portal, finds the Food Recall section, saves screenshots, HTML, every JSON response and a summary |
 | Scrape | `scraper.scrape` | Reads recall tables across every page and captures the JSON the page loads, keeping whichever gives more rows |
-| Clean | `clean` | Maps portal headers to standard columns, turns `N/A`/`-`/`nil` into nulls, parses dates, normalises IDs, batches and licence numbers, tags hazards, removes phone numbers and emails from reasons, and removes duplicate recall IDs |
-| Validate | `quality` | Profiles every column and checks the rules below, writing `data/reports/quality_report.md` |
+| Clean | `clean` | Maps portal headers to standard columns, turns `N/A`/`-`/`nil` into nulls, parses dates, normalises IDs, batches and licence numbers, tags hazards, strips phone numbers and emails from reasons, and removes duplicate recall IDs |
+| Validate | `quality` | Profiles every column, checks the rules below, and writes `data/reports/quality_report.md` |
 | Load | `db` | Creates tables and GIN trigram indexes, upgrades older databases in place, upserts recalls and records when each was first seen |
-| Refresh | `pipeline.refresh` | Loads recalls, rematches every purchase, queues and sends alerts, and logs the run (new recalls, auto-published, sent to review, alerts sent) |
+| Refresh | `pipeline.refresh` | Loads recalls, rematches every purchase, queues and sends alerts, and logs the run |
 
 | Level | Validation rule |
 |---|---|
-| Error | `recall_id`, `product_name` and `recall_date` are present; `recall_id` is unique; `recall_date` is not in the future; `expiry_date` is after `manufacture_date` |
-| Warning | `recall_date` is before `manufacture_date`; licence number is not 14 digits; brand, batch, reason or status is missing; reason is a placeholder or names no recognised hazard |
+| Error | `recall_id`, `product_name` and `recall_date` are present; `recall_id` is unique; `recall_date` isn't in the future; `expiry_date` is after `manufacture_date` |
+| Warning | `recall_date` is before `manufacture_date`; licence number isn't 14 digits; brand, batch, reason or status is missing; reason is a placeholder or names no recognised hazard |
 
-## Setup on Windows
+## Setting it up on Windows
 
-1. **Install Python** 3.11 or newer from python.org and tick "Add python.exe to PATH".
-2. **Install PostgreSQL 16** from the EDB installer at postgresql.org/download/windows. Note the password for the `postgres` user. `pg_trgm` is included.
+1. **Install Python** 3.11 or newer from python.org, and tick "Add python.exe to PATH".
+2. **Install PostgreSQL 16** with the EDB installer from postgresql.org/download/windows. Note the password you set for the `postgres` user. `pg_trgm` is included.
 3. **Install Tesseract** for receipt OCR, using the UB Mannheim installer from github.com/UB-Mannheim/tesseract/wiki. If it isn't on PATH, set `TESSERACT_CMD=C:\Program Files\Tesseract-OCR\tesseract.exe` in `.env`.
 4. **Set up the project.** In PowerShell, from the project folder:
 
@@ -208,12 +216,12 @@ playwright install chromium
 copy .env.example .env
 ```
 
-   If PowerShell blocks the activate script, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once. For Gmail API import, also run `pip install -r requirements-intake.txt`.
+If PowerShell blocks the activate script, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once. For Gmail API import, also run `pip install -r requirements-intake.txt`.
 
 5. **Point the project at your database.** Put your `postgres` password into `DATABASE_URL` in `.env`.
-6. **Create the database.** In "SQL Shell (psql)" or pgAdmin: `CREATE DATABASE recallindia;`
+6. **Create the database.** In SQL Shell (psql) or pgAdmin: `CREATE DATABASE recallindia;`
 
-`load`, `run` and `load-rules` create the extension, tables and indexes, and bring a database made by an earlier version up to date.
+`load`, `run` and `load-rules` create the extension, tables and indexes, and bring a database from an earlier version up to date.
 
 ## Running it
 
@@ -230,16 +238,16 @@ python -m recallindia import-email "All mail.mbox" --user ritu
 python -m recallindia import-receipt receipt.jpg --user ritu
 python -m recallindia review list
 python -m recallindia review approve 12 --note "same brand and batch"
-python -m recallindia serve                  # API at http://127.0.0.1:8000/docs
+python -m recallindia serve                  # API docs at http://127.0.0.1:8000/docs
 ```
 
-### Keeping it current
+### Keeping it up to date
 
 ```powershell
 python -m recallindia run --scrape
 ```
 
-scrapes FoSCoS, loads the recalls (counting the new ones), rematches every purchase, fills the review queue and sends alerts. To run it every morning, add a Windows Task Scheduler task that runs `.venv\Scripts\python.exe -m recallindia run --scrape` in the project folder.
+This scrapes FoSCoS, loads the recalls (counting the new ones), rematches every purchase, fills the review queue and sends alerts. To run it every morning, add a Windows Task Scheduler task that runs `.venv\Scripts\python.exe -m recallindia run --scrape` in the project folder.
 
 ### Without a database
 
@@ -264,7 +272,7 @@ Set `TEST_DATABASE_URL` to an empty test database to include the PostgreSQL inte
 | `match` | Match all purchases and fill the review queue. `--memory` works from the cleaned files |
 | `run [--scrape] [--no-send]` | Full refresh |
 | `review list`, `review approve ID…`, `review reject ID…` | Work the review queue. Approving sends the alert unless `--no-send` |
-| `alerts [--channel outbox\|email\|console]` | Queue and send any pending alerts |
+| `alerts [--channel outbox\|email\|console]` | Queue and send pending alerts |
 | `users add ID --email … --name …`, `users list` | Manage users |
 | `import-email PATH`, `import-email --gmail` | Order-email intake. `--dry-run` to preview |
 | `import-receipt FILE…` | Receipt OCR intake. `--show-text` prints the OCR text |
@@ -272,7 +280,7 @@ Set `TEST_DATABASE_URL` to an empty test database to include the PostgreSQL inte
 | `global-status QUERY`, `global-status --divergent` | Ingredient status in India, the EU and the US |
 | `load-rules`, `check`, `serve` | Reference data, label check, API |
 
-`--purchases` CSVs use the columns `purchase_id, product_name, brand, batch_no, store, purchase_date` (and optionally `user_id`). Dates are day-first, as in `15/06/2025`.
+`--purchases` CSVs use the columns `purchase_id, product_name, brand, batch_no, store, purchase_date` (and optionally `user_id`). Dates are day-first, like `15/06/2025`.
 
 ## API
 
@@ -280,13 +288,13 @@ Set `TEST_DATABASE_URL` to an empty test database to include the PostgreSQL inte
 |---|---|---|
 | POST | `/users` | Create or update a user `{"user_id", "email", "name", "alerts_enabled"}` |
 | POST | `/users/{id}/purchases` | Add purchases (JSON list), match them, send alerts |
-| POST | `/users/{id}/receipts` | Upload a receipt photo; OCR, match, alert |
-| POST | `/users/{id}/order-emails` | Upload an `.eml` or Takeout `.mbox`; import, match, alert |
+| POST | `/users/{id}/receipts` | Upload a receipt photo: OCR, match, alert |
+| POST | `/users/{id}/order-emails` | Upload an `.eml` or Takeout `.mbox`: import, match, alert |
 | GET | `/users/{id}/matches` | Published matches for the user (never pending ones) |
 | GET | `/users/{id}/summary` | Home screen: products watched, which are affected, latest recalls |
-| GET | `/users/{id}/purchases` | My Products, with the published recalls each matches |
+| GET | `/users/{id}/purchases` | My Products, with the published recalls each one matches |
 | PATCH / DELETE | `/users/{id}/purchases/{pid}` | Set a batch number or name (rechecks it), mark finished, or delete |
-| GET | `/users/{id}/alerts` | The user's alerts, with what-to-do text, unanswered first |
+| GET | `/users/{id}/alerts` | The user's alerts with what-to-do text, unanswered first |
 | POST | `/users/{id}/alerts/{aid}/feedback` | `{"answer": "has_batch" \| "not_my_batch"}` |
 | POST | `/check/photo` | A photo of an ingredient label: OCR, then the label check |
 | GET | `/alternatives?barcode=…` | Similar products without the scanned product's flagged ingredients |
@@ -310,7 +318,9 @@ Set `TEST_DATABASE_URL` to an empty test database to include the PostgreSQL inte
 
 ## Label and barcode check
 
-Beyond the recall alerts, `check` reads a label's ingredient list (typed, or from Open Food Facts by barcode), finds INS/E codes and names, and checks them against FSSAI rules for the product's food category. It returns avoid, caution, check or no issues found, with the rule and source behind each flag, each ingredient's status abroad, and any high-confidence recall matches. The rules in `data/reference/rules.csv` are a starting set; only the potassium bromate ban is marked verified. The next step is importing the full additive tables from the [FSSAI compendium](https://fssai.gov.in/cms/compendium-fss-fps-fa.php).
+Besides recall alerts, `check` reads a label's ingredient list (typed, or pulled from Open Food Facts by barcode), finds INS/E codes and names, and checks them against FSSAI rules for the product's food category. It returns avoid, caution, check or no issues found, along with the rule and source behind each flag, each ingredient's status abroad, and any high-confidence recall matches.
+
+The rules in `data/reference/rules.csv` are a starting set, and only the potassium bromate ban is marked verified so far. The next step is importing the full additive tables from the [FSSAI compendium](https://fssai.gov.in/cms/compendium-fss-fps-fa.php).
 
 ## Project layout
 
@@ -340,10 +350,16 @@ data/samples/       synthetic sample data
 tests/              pytest suite and fixtures (order emails, receipt)
 ```
 
-## Status and limits
+## What I've tested and what I haven't
 
-- **Tested here:** cleaning, validation, matching, banding, review metrics, alert text and delivery, order-email parsing, receipt parsing and OCR, global status, and the evaluation sets (48 tests). The review, alert and migration SQL was run against PostgreSQL 16, including upgrading a database made by the previous version.
-- **Needs a first real run:** the FastAPI endpoints and the SQLAlchemy calls around that SQL (run `pytest` with `TEST_DATABASE_URL` set); the Gmail API path, which needs your own OAuth client; and the order-email parser on real emails, since it was built on representative test emails.
-- **Data:** FoSCoS gives no manufacture or expiry dates and often no batch, so many matches rest on brand and product alone, and the alert tells the user to check the batch on the pack.
-- **Needs your accounts to finish:** Google sign-in (an OAuth client ID), phone notifications (`pywebpush`, which couldn't be installed in the build environment, plus `vapid-keys`), and hosting (Render). The code and its unit tests are in place; see `DEPLOY.md`. Alternatives were tested against sample Open Food Facts data; the live search couldn't be reached from the build environment.
-- **Next:** CDSCO monthly PDF alerts (Phase 2), BIS notices, a scheduled scrape on the server, a fresh test set from real imports, and the "brand and batch agree" review rule.
+**Tested:** cleaning, validation, matching, banding, review metrics, alert text and delivery, order-email parsing, receipt parsing and OCR, global status, and the evaluation sets (48 tests). [CONFIRM: that you ran the review, alert and migration SQL against PostgreSQL 16 on your own machine, including upgrading an older database. Delete this sentence if you didn't.]
+
+**Not yet run end to end:** [FILL IN from what you actually did. For each of these, say "ran it, works" or "not run yet": the FastAPI endpoints, the SQLAlchemy calls around the SQL, the Gmail API path (needs your own OAuth client), and the order-email parser on real emails. The parser was built on representative test emails, not real ones.]
+
+**Data limits:** FoSCoS gives no manufacture or expiry dates and often no batch, so many matches rest on brand and product alone. The alert tells the user to check the batch on the pack.
+
+**Still to set up:** Google sign-in (needs an OAuth client ID), phone notifications (needs `pywebpush` and `vapid-keys`; [FILL IN: what happened when you tried to install `pywebpush`, or delete this note]) and hosting on Render. The code and unit tests are in place. See `DEPLOY.md`. Alternatives were tested against sample Open Food Facts data. [FILL IN: whether you've tried the live Open Food Facts search yourself.]
+
+## What's next
+
+CDSCO monthly PDF alerts (Phase 2), BIS notices, a scheduled scrape on the server, a fresh test set from real imports, and the "brand and batch agree" review rule.
