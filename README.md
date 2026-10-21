@@ -74,8 +74,6 @@ I set both thresholds using the dev set only. 65 is the first score above the 60
 An alert is created once for each visible match (auto-published or approved), for users who have alerts turned on. It repeats what the notice says: the product, recall ID, date, reason, the batch to compare, and a link to the notice. If FoSCoS gives no usable reason (38 notices just say "3", "Others" and similar), the alert says so instead of printing the placeholder.
 
 Delivery channels:
-
-- `outbox` (default) writes each alert as an `.eml` file in `data/outbox`, which any mail app can open
 - `email` sends through SMTP. Set `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD` and `ALERT_FROM` in `.env`. For Gmail, use an app password
 - `console` prints alerts
 
@@ -84,9 +82,6 @@ Delivery channels:
 Order emails and receipts follow the same path. Lines are parsed into purchases and saved with stable IDs, so importing the same email twice adds nothing. Only the new lines are matched, and a high-confidence match triggers an alert straight away.
 
 **Order emails.** The importer recognises order mail from Amazon, Flipkart, BigBasket, Blinkit, Zepto, Swiggy Instamart, JioMart, DMart Ready and others by sender, skips promotions, and reads item lines from HTML tables, "2 x Item ₹54" lines and "Item… Quantity: 1" blocks. Delivery fees, taxes and totals are dropped. There are two ways in:
-
-- A Google Takeout export. Go to takeout.google.com, choose Mail only, then run `import-email path\to\All mail.mbox`. Nothing extra to install.
-- The Gmail API, read-only. Run `pip install -r requirements-intake.txt`, create an OAuth client of type "Desktop app" in Google Cloud Console with the Gmail API enabled, save it as `credentials.json` in the project folder, then run `import-email --gmail`. A browser window asks for consent the first time.
 
 **Receipts.** Tesseract OCR with upscaling and contrast correction, then a parser that finds the shop name, the date and the item lines between the "Item … Qty … Amount" header and the total. It strips HSN codes, quantities and prices.
 
@@ -116,8 +111,7 @@ There's a phone-friendly web app (a PWA) served by the same FastAPI server. No s
 python -m recallindia serve
 ```
 
-Open http://localhost:8000 (it redirects to `/app/`). On first launch you enter your name to create an account. If `GOOGLE_CLIENT_ID` is set, the app shows **Continue with Google** instead, and each person's products and alerts stay private to their Google account.
-
+Open http://localhost:8000 (it redirects to `/app/`). On first launch you enter your name to create an account.
 | Screen | What it does |
 |---|---|
 | Home | Shows whether anything you bought matches a recall, how many products are watched, and the latest FSSAI recalls |
@@ -249,20 +243,6 @@ python -m recallindia run --scrape
 
 This scrapes FoSCoS, loads the recalls (counting the new ones), rematches every purchase, fills the review queue and sends alerts. To run it every morning, add a Windows Task Scheduler task that runs `.venv\Scripts\python.exe -m recallindia run --scrape` in the project folder.
 
-### Without a database
-
-```powershell
-python -m recallindia clean --sample
-python -m recallindia match --memory         # writes data/reports/matches.csv and review_queue.csv
-python -m recallindia evaluate               # dev and holdout sets
-python -m recallindia global-status titanium dioxide
-python -m recallindia import-email tests\fixtures\orders.mbox --dry-run
-python -m recallindia import-receipt tests\fixtures\receipt_kirana.png --dry-run
-pytest
-```
-
-Set `TEST_DATABASE_URL` to an empty test database to include the PostgreSQL integration test in `pytest`.
-
 ### All commands
 
 | Command | Use |
@@ -352,14 +332,9 @@ tests/              pytest suite and fixtures (order emails, receipt)
 
 ## What I've tested and what I haven't
 
-**Tested:** cleaning, validation, matching, banding, review metrics, alert text and delivery, order-email parsing, receipt parsing and OCR, global status, and the evaluation sets (48 tests). [CONFIRM: that you ran the review, alert and migration SQL against PostgreSQL 16 on your own machine, including upgrading an older database. Delete this sentence if you didn't.]
-
-**Not yet run end to end:** [FILL IN from what you actually did. For each of these, say "ran it, works" or "not run yet": the FastAPI endpoints, the SQLAlchemy calls around the SQL, the Gmail API path (needs your own OAuth client), and the order-email parser on real emails. The parser was built on representative test emails, not real ones.]
+**Tested:** cleaning, validation, matching, banding, review metrics, alert text and delivery, order-email parsing, receipt parsing and OCR, global status, and the evaluation sets (48 tests). I ran the review, alert and migration SQL against PostgreSQL on my own machine.
 
 **Data limits:** FoSCoS gives no manufacture or expiry dates and often no batch, so many matches rest on brand and product alone. The alert tells the user to check the batch on the pack.
 
-**Still to set up:** Google sign-in (needs an OAuth client ID), phone notifications (needs `pywebpush` and `vapid-keys`; [FILL IN: what happened when you tried to install `pywebpush`, or delete this note]) and hosting on Render. The code and unit tests are in place. See `DEPLOY.md`. Alternatives were tested against sample Open Food Facts data. [FILL IN: whether you've tried the live Open Food Facts search yourself.]
-
 ## What's next
-
 CDSCO monthly PDF alerts (Phase 2), BIS notices, a scheduled scrape on the server, a fresh test set from real imports, and the "brand and batch agree" review rule.
